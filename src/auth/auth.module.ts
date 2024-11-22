@@ -9,6 +9,7 @@ import { HashingService } from './providers/hashing.service';
 import { BcryptService } from './providers/bcrypt.service';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RefreshAuthGuard } from './guards/jwt-refresh-guard';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
         return {
           secret: configService.get<string>('JWT_SECRET'),
           signOptions: {
-            expiresIn: configService.get<string>('JWT_TOKEN_TTL'),
+            expiresIn: `${configService.get<string>('JWT_TOKEN_TTL')}ms`,
           },
         };
       },
@@ -33,6 +34,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     AuthService,
     LocalStrategy,
     JwtStrategy,
+    RefreshAuthGuard,
   ],
   controllers: [AuthController],
 })

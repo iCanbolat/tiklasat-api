@@ -1,7 +1,7 @@
 import { Request } from 'express';
 
 export type UserPayload = {
-  id: number;
+  id: string;
 };
 
 export interface RequestWithUser extends Request {

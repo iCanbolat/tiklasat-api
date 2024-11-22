@@ -1,33 +1,53 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { HashingService } from './hashing.service';
-import { users } from 'src/database/database-schema';
 import { eq } from 'drizzle-orm';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { SignUpDto } from '../dto/sign-up.dto';
+import { UserTable } from 'src/database/schemas/users.schema';
+import { Response as ExpressResponse } from 'express';
 
 @Injectable()
 export class AuthService {
+  private readonly jwtTtl: number;
+  private readonly refreshTokenTtl: number;
+  private readonly refreshTokenSecret: string;
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly drizzleService: DrizzleService,
     private readonly hashingService: HashingService,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) {
+    this.jwtTtl = parseInt(
+      this.configService.getOrThrow<string>('JWT_TOKEN_TTL'),
+    );
+    this.refreshTokenTtl = parseInt(
+      this.configService.getOrThrow<string>('REFRESH_TOKEN_TTL'),
+    );
+    this.refreshTokenSecret = this.configService.getOrThrow<string>(
+      'REFRESH_TOKEN_SECRET',
+    );
+  }
+
+  private calculateExpiration(milliseconds: number): Date {
+    const date = new Date();
+    date.setMilliseconds(date.getTime() + milliseconds);
+    return date;
+  }
 
   async validateUser(email: string, password: string): Promise<any> {
-    // find the user by email
     const [user] = await this.drizzleService.db
       .select()
-      .from(users)
-      .where(eq(users.email, email));
+      .from(UserTable)
+      .where(eq(UserTable.email, email));
 
     if (!user) {
       throw new BadRequestException('Invalid credentials');
     }
 
-    // check if the password matches
     const isPasswordValid = await this.hashingService.compare(
       password,
       user.password,
@@ -41,51 +61,97 @@ export class AuthService {
     return user;
   }
 
-  async signUp(signUpDto: SignUpDto) {
-    const hashedPassword = await this.hashingService.hash(signUpDto.password);
-
-    // check if the email is already used
+  async signUp(signUpDto: SignUpDto, response: ExpressResponse) {
     const [userWithEmail] = await this.drizzleService.db
       .select()
-      .from(users)
-      .where(eq(users.email, signUpDto.email));
+      .from(UserTable)
+      .where(eq(UserTable.email, signUpDto.email));
 
     if (userWithEmail) {
       throw new BadRequestException('Email already used');
     }
 
-    // create new user
+    const hashedPassword = await this.hashingService.hash(signUpDto.password);
     const [user] = await this.drizzleService.db
-      .insert(users)
+      .insert(UserTable)
       .values({
-        ...signUpDto,
+        name: `${signUpDto.firstName} ${signUpDto.lastName}`,
+        email: signUpDto.email,
         password: hashedPassword,
       })
       .returning();
 
     delete user.password;
-    return user;
+
+    this.logger.log(`User ${user.name} has created as ${user.role}.`);
+
+    await this.generateTokens(user, response);
+    return { message: 'Registered new user!' };
   }
 
-  private async signToken<T>(userId: number, payload?: T) {
-    return this.jwtService.signAsync({
-      sub: userId,
-      ...payload,
-    });
-  }
-
-  async generateTokens(userId: number) {
+  async signIn(userId: string, response: ExpressResponse) {
     const [user] = await this.drizzleService.db
       .select()
-      .from(users)
-      .where(eq(users.id, userId));
-    const [accessToken] = await Promise.all([
-      await this.signToken(user.id, {
-        email: user.email,
-      }),
+      .from(UserTable)
+      .where(eq(UserTable.id, userId));
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+    await this.generateTokens(user, response);
+
+    return { message: 'Login successfull!' };
+  }
+  
+  async logout(response: ExpressResponse) {
+    response.clearCookie('access_token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+    });
+    response.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+    });
+
+    return { message: 'Logout successful!' };
+  }
+
+  async generateTokens(
+    user: { id: string; email: string },
+    response: ExpressResponse,
+  ) {
+    const expiresAccessTokenCookie = this.calculateExpiration(this.jwtTtl);
+    const expiresRefreshTokenCookie = this.calculateExpiration(
+      this.refreshTokenTtl,
+    );
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(
+        { sub: user.id, email: user.email },
+        { expiresIn: `${this.jwtTtl}ms` },
+      ),
+      this.jwtService.signAsync(
+        { sub: user.id, email: user.email },
+        {
+          secret: this.refreshTokenSecret,
+          expiresIn: `${this.refreshTokenTtl}ms`,
+        },
+      ),
     ]);
-    return {
-      accessToken,
-    };
+
+    response.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      expires: expiresAccessTokenCookie,
+    });
+    response.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      expires: expiresRefreshTokenCookie,
+    });
   }
 }

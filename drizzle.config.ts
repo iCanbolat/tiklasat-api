@@ -5,7 +5,7 @@ import 'dotenv/config';
 const configService = new ConfigService();
 
 export default defineConfig({
-  schema: './src/database/database-schema.ts',
+  schema: './src/database/schemas',
   out: './src/database/migrations',
   dialect: 'postgresql',
   dbCredentials: {

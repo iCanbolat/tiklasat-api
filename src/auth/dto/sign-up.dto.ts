@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { userRoleStatus } from '../../database/schemas/users.schema';
 
 export class SignUpDto {
   @ApiProperty({
@@ -17,6 +18,11 @@ export class SignUpDto {
   @IsString()
   @MinLength(1)
   lastName: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({ example: 'ADMIN', enum: userRoleStatus.Enum, required: false })
+  role?: string;
 
   @ApiProperty({
     description: 'Email of the new user',

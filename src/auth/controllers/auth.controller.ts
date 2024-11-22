@@ -5,6 +5,7 @@ import {
   HttpCode,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -24,6 +25,7 @@ import { SignInDto } from '../dto/sign-in.dto';
 import { SignInResponseDto } from '../dto/sign-in-response.dto';
 import { SignUpDto } from '../dto/sign-up.dto';
 import { SignUpResponseDto } from '../dto/sign-up-response.dto';
+import { Response as ExpressResponse } from 'express';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -44,9 +46,11 @@ export class AuthController {
     description: 'User successfully logged in',
     type: SignInResponseDto,
   })
-  async signIn(@Req() request: RequestWithUser) {
-    const userId = request.user.id;
-    return this.authService.generateTokens(userId);
+  async signIn(
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) response: ExpressResponse,
+  ) {
+    return await this.authService.signIn(request.user.id, response);
   }
 
   @Public()
@@ -62,9 +66,24 @@ export class AuthController {
     description: 'User successfully registered',
     type: SignUpResponseDto,
   })
-  async signUp(@Body() signUpDto: SignUpDto) {
-    const user = await this.authService.signUp(signUpDto);
-    return user;
+  async signUp(
+    @Body() signUpDto: SignUpDto,
+    @Res({ passthrough: true }) response: ExpressResponse,
+  ) {
+    return await this.authService.signUp(signUpDto, response);
+  }
+
+  @Public()
+  @Post('logout')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Log out user',
+  })
+  @ApiCreatedResponse({
+    description: 'User successfully logged out',
+  })
+  async logOut(@Res({ passthrough: true }) response: ExpressResponse) {
+    return this.authService.logout(response);
   }
 
   @Get('me')
