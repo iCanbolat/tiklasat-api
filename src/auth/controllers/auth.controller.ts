@@ -26,6 +26,7 @@ import { SignInResponseDto } from '../dto/sign-in-response.dto';
 import { SignUpDto } from '../dto/sign-up.dto';
 import { SignUpResponseDto } from '../dto/sign-up-response.dto';
 import { Response as ExpressResponse } from 'express';
+import { RefreshAuthGuard } from '../guards/jwt-refresh-guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -50,7 +51,7 @@ export class AuthController {
     @Req() request: RequestWithUser,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
-    return await this.authService.signIn(request.user.id, response);
+    return await this.authService.generateTokens(request.user, response);
   }
 
   @Public()
@@ -71,6 +72,20 @@ export class AuthController {
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
     return await this.authService.signUp(signUpDto, response);
+  }
+
+  
+  @Post('refresh')
+  @UseGuards(RefreshAuthGuard)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Generate new tokens if valid refresh token',
+  })
+  async refresh(
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) response: ExpressResponse,
+  ) {
+    return await this.authService.generateTokens(request.user, response);
   }
 
   @Public()

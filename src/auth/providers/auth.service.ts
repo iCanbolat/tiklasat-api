@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { SignUpDto } from '../dto/sign-up.dto';
 import { UserTable } from 'src/database/schemas/users.schema';
 import { Response as ExpressResponse } from 'express';
+import { UserPayload } from '../interfaces/request-with-user';
 
 @Injectable()
 export class AuthService {
@@ -34,7 +35,7 @@ export class AuthService {
 
   private calculateExpiration(milliseconds: number): Date {
     const date = new Date();
-    date.setMilliseconds(date.getTime() + milliseconds);
+    date.setTime(date.getTime() + milliseconds);
     return date;
   }
 
@@ -85,24 +86,15 @@ export class AuthService {
 
     this.logger.log(`User ${user.name} has created as ${user.role}.`);
 
-    await this.generateTokens(user, response);
-    return { message: 'Registered new user!' };
+    const payload: UserPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    return await this.generateTokens(payload, response);
   }
 
-  async signIn(userId: string, response: ExpressResponse) {
-    const [user] = await this.drizzleService.db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.id, userId));
-
-    if (!user) {
-      throw new Error('User not found');
-    }
-    await this.generateTokens(user, response);
-
-    return { message: 'Login successfull!' };
-  }
-  
   async logout(response: ExpressResponse) {
     response.clearCookie('access_token', {
       httpOnly: true,
@@ -118,10 +110,7 @@ export class AuthService {
     return { message: 'Logout successful!' };
   }
 
-  async generateTokens(
-    user: { id: string; email: string },
-    response: ExpressResponse,
-  ) {
+  async generateTokens(user: UserPayload, response: ExpressResponse) {
     const expiresAccessTokenCookie = this.calculateExpiration(this.jwtTtl);
     const expiresRefreshTokenCookie = this.calculateExpiration(
       this.refreshTokenTtl,
@@ -129,11 +118,11 @@ export class AuthService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
-        { sub: user.id, email: user.email },
+        { sub: user.id, email: user.email, role: user.role },
         { expiresIn: `${this.jwtTtl}ms` },
       ),
       this.jwtService.signAsync(
-        { sub: user.id, email: user.email },
+        { sub: user.id, email: user.email, role: user.role },
         {
           secret: this.refreshTokenSecret,
           expiresIn: `${this.refreshTokenTtl}ms`,
@@ -153,5 +142,13 @@ export class AuthService {
       sameSite: 'strict',
       expires: expiresRefreshTokenCookie,
     });
+
+    console.log('exp_accesscookie', expiresAccessTokenCookie);
+    console.log('exp_refresc', expiresRefreshTokenCookie);
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 }

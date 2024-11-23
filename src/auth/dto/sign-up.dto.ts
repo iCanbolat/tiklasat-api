@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
-import { userRoleStatus } from '../../database/schemas/users.schema';
+import { UserRole } from 'src/database/schemas/users.schema';
+// import { userRoleStatus } from '../../database/schemas/users.schema';
 
 export class SignUpDto {
   @ApiProperty({
@@ -21,7 +22,7 @@ export class SignUpDto {
 
   @IsOptional()
   @IsString()
-  @ApiProperty({ example: 'ADMIN', enum: userRoleStatus.Enum, required: false })
+  @ApiProperty({ example: 'ADMIN', enum: UserRole, required: false })
   role?: string;
 
   @ApiProperty({

@@ -11,14 +11,11 @@ import {
   numeric,
   pgEnum,
 } from 'drizzle-orm/pg-core';
-import { z } from 'zod';
-// import { StoreTable } from './store';
 import { ReviewTable } from './reviews.schema';
 import { OrderItemTable } from './order-items.schema';
 
 export const ProductTable = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
-  // storeId: uuid('store_id').references(() => StoreTable.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   price: numeric('price', { precision: 10, scale: 2 }).notNull(),
@@ -68,7 +65,6 @@ export const productImageRelations = relations(
 );
 
 export const productRelations = relations(ProductTable, ({ many, one }) => ({
-  // store: one(StoreTable, { fields: [ProductTable.storeId], references: [StoreTable.id] }),
   images: many(ProductImageTable),
   variants: many(ProductVariantTable),
   reviews: many(ReviewTable),

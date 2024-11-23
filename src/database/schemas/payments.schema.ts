@@ -21,7 +21,6 @@ export const PaymentTable = pgTable('payments', {
   }),
   amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).default('USD'),
-  status: varchar('status', { length: 50 }).default('Pending').notNull(),
   paymentMethod: varchar('payment_method', { length: 50 }).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });

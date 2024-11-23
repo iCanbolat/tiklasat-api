@@ -9,8 +9,8 @@ import { HashingService } from './providers/hashing.service';
 import { BcryptService } from './providers/bcrypt.service';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { RefreshAuthGuard } from './guards/jwt-refresh-guard';
-
+import { RefreshTokenStrategy } from './strategies/refresh-token-strategy';
+ 
 @Module({
   imports: [
     JwtModule.registerAsync({
@@ -34,7 +34,7 @@ import { RefreshAuthGuard } from './guards/jwt-refresh-guard';
     AuthService,
     LocalStrategy,
     JwtStrategy,
-    RefreshAuthGuard,
+    RefreshTokenStrategy,
   ],
   controllers: [AuthController],
 })
