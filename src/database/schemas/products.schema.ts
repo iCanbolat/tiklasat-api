@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { ReviewTable } from './reviews.schema';
 import { OrderItemTable } from './order-items.schema';
+import { ProductCategoryTable } from './categories.schema';
 
 export const ProductTable = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -20,7 +21,8 @@ export const ProductTable = pgTable('products', {
   description: text('description'),
   price: numeric('price', { precision: 10, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).default('USD'),
-  stockQuantity: integer('stock_quantity').notNull(),
+  stockQuantity: integer('stock_quantity').default(0).notNull(),
+  isFeatured: boolean('is_featured').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at')
     .defaultNow()
@@ -69,4 +71,5 @@ export const productRelations = relations(ProductTable, ({ many, one }) => ({
   variants: many(ProductVariantTable),
   reviews: many(ReviewTable),
   orderItems: many(OrderItemTable),
+  categories: many(ProductCategoryTable),
 }));
