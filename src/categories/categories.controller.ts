@@ -39,6 +39,16 @@ export class CategoriesController {
   @Public()
   @Post('link')
   @HttpCode(200)
+  @ApiBody({ type: LinkProductToCategoryDto })
+  @ApiOperation({
+    summary: 'Links product to category.',
+    description:
+      'This endpoint allows a admin to link product to category.',
+  })
+  @ApiCreatedResponse({
+    description: 'Product successfully linked from category',
+    type: LinkProductToCategoryDto,
+  })
   async linkProductToCategory(
     @Body() linkProductToCategoryDto: LinkProductToCategoryDto,
   ) {
@@ -47,26 +57,47 @@ export class CategoriesController {
     );
   }
 
+  @Delete('unlink')
+  @HttpCode(200)
+  @ApiBody({ type: LinkProductToCategoryDto })
+  @ApiOperation({
+    summary: 'Unlinks product to category.',
+    description:
+      'This endpoint allows a admin to unlink product to category.',
+  })
+  async unlinkProductFromCategory(@Body() linkDto: LinkProductToCategoryDto) {
+    return await this.categoriesService.unlinkProductFromCategory(linkDto);
+  }
+
+  @Public()
   @Get()
-  findAll() {
-    return this.categoriesService.findAll();
+  @HttpCode(200)
+  async getAllCategories() {
+    return await this.categoriesService.getAllCategories();
   }
 
+  @Public()
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.categoriesService.findOne(+id);
+  @HttpCode(200)
+  async getCategory(
+    @Param() id: string,
+  ) {
+    return await this.categoriesService.getCategory(id);
   }
 
+  @Public()
   @Patch(':id')
-  update(
-    @Param('id') id: string,
+  @HttpCode(200)
+  async updateCategory(
+    @Param() id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
-    return this.categoriesService.update(+id, updateCategoryDto);
+    return await this.categoriesService.updateCategory(id, updateCategoryDto);
   }
 
+  @Public()
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.categoriesService.remove(+id);
+    return this.categoriesService.removeCategory(id);
   }
 }

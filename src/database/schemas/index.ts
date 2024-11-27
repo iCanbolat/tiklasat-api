@@ -1,3 +1,4 @@
+import { CategoryTable } from './categories.schema';
 import { OrderItemTable } from './order-items.schema';
 import { OrderTable } from './orders.schema';
 import { PaymentTable } from './payments.schema';
@@ -12,6 +13,7 @@ export {
   ReviewTable,
   UserTable,
   ProductTable,
+  CategoryTable,
 };
 
 export const databaseSchema = {
@@ -21,4 +23,5 @@ export const databaseSchema = {
   orderItems: OrderItemTable,
   payments: PaymentTable,
   reviews: ReviewTable,
+  categories: CategoryTable,
 };

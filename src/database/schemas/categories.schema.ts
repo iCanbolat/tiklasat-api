@@ -22,12 +22,16 @@ export const CategoryTable = pgTable('categories', {
 export const ProductCategoryTable = pgTable(
   'products_to_categories',
   {
-    productId: uuid('product_id').references(() => ProductTable.id, {
-      onDelete: 'cascade',
-    }),
-    categoryId: uuid('category_id').references(() => CategoryTable.id, {
-      onDelete: 'cascade',
-    }),
+    productId: uuid('product_id')
+      .references(() => ProductTable.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
+    categoryId: uuid('category_id')
+      .references(() => CategoryTable.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.productId, t.categoryId] }),
