@@ -10,9 +10,9 @@ import { relations, sql } from 'drizzle-orm';
 
 export const CategoryTable = pgTable('categories', {
   id: uuid('id').primaryKey().defaultRandom(),
-  imageUrl: varchar('url', { length: 1024 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
+  imageUrl: varchar('url', { length: 1024 }).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at')
     .defaultNow()

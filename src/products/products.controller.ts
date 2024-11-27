@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpCode,
+} from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -11,6 +20,7 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Public()
+  @Post()
   @HttpCode(201)
   @ApiOperation({
     summary: 'Creates a new product.',
@@ -19,7 +29,7 @@ export class ProductsController {
   })
   @ApiBody({ type: CreateProductDto, description: 'Product create details' })
   @ApiCreatedResponse({
-    description: 'User successfully registered',
+    description: 'Product successfully created',
     type: CreateProductResponseDto,
   })
   create(@Body() createProductDto: CreateProductDto) {

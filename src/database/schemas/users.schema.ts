@@ -9,7 +9,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 
-export const UserRoleStatusEnum = pgEnum('user_role_status', ['ADMIN', 'USER']);
+const UserRoleStatusEnum = pgEnum('user_role_status', ['ADMIN', 'USER']);
 
 export const UserRole = z.enum(UserRoleStatusEnum.enumValues);
 export type UserRoleType = z.infer<typeof UserRole>;

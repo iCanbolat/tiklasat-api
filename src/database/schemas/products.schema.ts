@@ -14,14 +14,20 @@ import {
 import { ReviewTable } from './reviews.schema';
 import { OrderItemTable } from './order-items.schema';
 import { ProductCategoryTable } from './categories.schema';
+import { z } from 'zod';
+
+const CurrencyEnumCol = pgEnum('currency_enum', ['USD', 'TRY']);
+
+export const CurrencyEnum = z.enum(CurrencyEnumCol.enumValues);
+export type CurrencyType = z.infer<typeof CurrencyEnum>;
 
 export const ProductTable = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   price: numeric('price', { precision: 10, scale: 2 }).notNull(),
-  currency: varchar('currency', { length: 3 }).default('USD'),
-  stockQuantity: integer('stock_quantity').default(0).notNull(),
+  currency: CurrencyEnumCol('currency').default('USD'),
+  stockQuantity: integer('total_stock_quantity').default(0).notNull(),
   isFeatured: boolean('is_featured').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at')
@@ -36,6 +42,8 @@ export const ProductVariantTable = pgTable('product_variants', {
   }),
   variantType: varchar('variant_type', { length: 50 }).notNull(),
   value: varchar('value', { length: 50 }).notNull(),
+  stockQuantity: integer('stock_quantity').default(0).notNull(),
+  price: numeric('price', { precision: 10, scale: 2 }),
 });
 
 export const productVariantRelations = relations(
