@@ -18,10 +18,6 @@ import {
 } from 'src/database/schemas/products.schema';
 
 class VariantDto {
-  @ApiProperty({
-    description: 'Name of the new product',
-    example: 'TV',
-  })
   @IsString()
   variantType: string;
 
@@ -36,30 +32,26 @@ class VariantDto {
 }
 
 export class CreateProductDto {
-  @ApiProperty({
-    description: 'Name of the new product',
-    example: 'TV',
-  })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({
-    description: 'Description of the new product',
-  })
   @IsOptional()
   @IsString()
   description?: string;
 
+  @IsOptional()
+  @IsString()
+  categoryIdOrName?: string;
+
   @ApiProperty({
-    description: 'Email of the new user',
-    example: 'user@example.com',
+    description: 'Base Price of the product',
   })
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
 
-  @IsEnum(CurrencyEnum)
+  // @IsEnum(CurrencyEnum.Enum)
   @IsOptional()
   currency?: CurrencyType;
 

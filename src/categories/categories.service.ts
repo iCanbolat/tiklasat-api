@@ -6,9 +6,11 @@ import {
   CategoryTable,
   ProductCategoryTable,
 } from 'src/database/schemas/categories.schema';
-import { LinkProductToCategoryDto } from './dto/link-product-category.dto';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { ProductTable } from 'src/database/schemas';
+import { UpdateCategoryProductsDto } from './dto/update-category-products.dto';
+import { validate as isUUID } from 'uuid';
+import slugify from 'slugify';
 
 @Injectable()
 export class CategoriesService {
@@ -17,7 +19,7 @@ export class CategoriesService {
   async create(createCategoryDto: CreateCategoryDto) {
     const { name, slug, imageUrl } = createCategoryDto;
 
-    const newCategory = await this.drizzleService.db
+    const [newCategory] = await this.drizzleService.db
       .insert(CategoryTable)
       .values({
         name,
@@ -28,38 +30,59 @@ export class CategoriesService {
     return newCategory;
   }
 
-  async linkProductToCategory(
-    linkProductToCategoryDto: LinkProductToCategoryDto,
+  async updateOrCreateCategoryWithProducts(
+    categoryIdOrName: string,
+    { productIdsToLink, productIdsToUnlink }: UpdateCategoryProductsDto,
   ) {
-    const { productId, categoryId } = linkProductToCategoryDto;
+    let category: { id: string };
 
-    await this.drizzleService.db.insert(ProductCategoryTable).values({
-      productId,
-      categoryId,
-    });
-
-    return { productId, categoryId };
-  }
-
-  async unlinkProductFromCategory(linkDto: LinkProductToCategoryDto) {
-    const { productId, categoryId } = linkDto;
-
-    const result = await this.drizzleService.db
-      .delete(ProductCategoryTable)
-      .where(
-        sql`${ProductCategoryTable.productId} = ${productId} AND ${ProductCategoryTable.categoryId} = ${categoryId}`
-      );
-
-    if (result.rowCount === 0) {
-      throw new Error('Link not found or already removed');
+    if (!isUUID(categoryIdOrName)) {
+      category = await this.create({
+        name: categoryIdOrName,
+        slug: slugify(categoryIdOrName, { lower: true }),
+        imageUrl: '',
+      });
+    } else {
+      category = await this.getCategory(categoryIdOrName);
     }
 
-    return { message: 'Product successfully unlinked from category', productId, categoryId };
+    if (!category) {
+      throw new Error('Category not found');
+    }
+
+    if (productIdsToLink && productIdsToLink.length > 0) {
+      const links = productIdsToLink.map((productId) => ({
+        productId,
+        categoryId: category.id,
+      }));
+      await this.drizzleService.db
+        .insert(ProductCategoryTable)
+        .values(links)
+        .onConflictDoNothing();
+    }
+
+    if (productIdsToUnlink && productIdsToUnlink.length > 0) {
+      await this.drizzleService.db
+        .delete(ProductCategoryTable)
+        .where(
+          and(
+            eq(ProductCategoryTable.categoryId, category.id),
+            inArray(ProductCategoryTable.productId, productIdsToUnlink),
+          ),
+        );
+    }
+
+    return {
+      message: 'Category products updated successfully',
+      categoryId: category.id,
+      linkedProducts: productIdsToLink || [],
+      unlinkedProducts: productIdsToUnlink || [],
+    };
   }
 
   async getAllCategories() {
     return await this.drizzleService.db.query.categories.findMany({
-      with: { products: true },
+      with: { products: { with: { product: true } } },
     });
   }
 
@@ -67,6 +90,7 @@ export class CategoriesService {
     const categoryWithProducts =
       await this.drizzleService.db.query.categories.findFirst({
         where: (categories, { eq }) => eq(categories.id, categoryId),
+        with: { products: { with: { product: true } } },
       });
 
     if (!categoryWithProducts) {
@@ -74,31 +98,38 @@ export class CategoriesService {
     }
 
     return categoryWithProducts;
-
-    // let query = this.drizzleService.db
-    //   .select()
-    //   .from(CategoryTable)
-    //   .where(eq(CategoryTable.id, categoryId))
-    //   .$dynamic();
-
-    // if(includeProducts){
-    //   query.leftJoin(ProductTable, eq(ProductCategoryTable.productId, ProductTable.id));
-    // }
-
-    // const result = await query.execute();
-    // if (!result) {
-    //   throw new Error('Category not found');
-    // }
-    // console.log(result);
-
-    // return result;
   }
 
-  async removeCategory(id: string) {
+  async removeCategory(categoryId: string, shouldDeleteProducts: boolean) {
+    const categoryWithProducts = await this.getCategory(categoryId);
+
+    if (!shouldDeleteProducts) {
+      await this.drizzleService.db
+        .delete(CategoryTable)
+        .where(sql`${CategoryTable.id} = ${categoryId}`);
+
+      return {
+        message:
+          'Category deleted, but associated products were kept and unlinked',
+      };
+    }
+
+    const productIds = categoryWithProducts.products.map(
+      (link) => link.product.id,
+    );
+
+    await this.drizzleService.db
+      .delete(ProductTable)
+      .where(inArray(ProductTable.id, productIds));
+
     await this.drizzleService.db
       .delete(CategoryTable)
-      .where(eq(CategoryTable.id, id));
-    return `Category deleted by given id -> #${id}`;
+      .where(sql`${CategoryTable.id} = ${categoryId}`);
+
+    return {
+      message: 'Category and all associated products deleted successfully',
+      deletedProducts: productIds,
+    };
   }
 
   async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto) {

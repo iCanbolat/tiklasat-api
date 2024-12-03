@@ -5,19 +5,21 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { ProductTable } from './products.schema';
-import { relations, sql } from 'drizzle-orm';
+import {  ProductTable } from './products.schema';
+import { InferSelectModel, relations, sql } from 'drizzle-orm';
 
 export const CategoryTable = pgTable('categories', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
-  imageUrl: varchar('url', { length: 1024 }).notNull(),
+  imageUrl: varchar('image_url', { length: 1024 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at')
     .defaultNow()
     .$onUpdateFn(() => sql`now()`),
 });
+
+
 
 export const ProductCategoryTable = pgTable(
   'products_to_categories',
@@ -55,3 +57,4 @@ export const productsToCategoriesRelations = relations(
 export const categoryRelations = relations(CategoryTable, ({ many }) => ({
   products: many(ProductCategoryTable),
 }));
+ 
