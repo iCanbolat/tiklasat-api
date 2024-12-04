@@ -4,9 +4,12 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { ProductTable } from 'src/database/schemas';
 import { ProductVariantTable } from 'src/database/schemas/products.schema';
-import { sql } from 'drizzle-orm';
+import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
 import slugify from 'slugify';
+import { GetProductsDto } from './dto/get-products.dto';
+import { ProductCategoryTable } from 'src/database/schemas/categories.schema';
+import { PgSelect } from 'drizzle-orm/pg-core';
 
 @Injectable()
 export class ProductsService {
@@ -31,7 +34,7 @@ export class ProductsService {
       .insert(ProductTable)
       .values({
         name,
-        slug: slugify(name),
+        slug: slugify(name, { lower: true }),
         price,
         isFeatured,
         stockQuantity,
@@ -64,13 +67,98 @@ export class ProductsService {
       await this.drizzleService.db
         .update(ProductTable)
         .set({ stockQuantity: totalStock })
-        .where(sql`${ProductTable.id} = ${product.id}`);
+        .where(eq(ProductTable.id, product.id));
     }
     return product;
   }
 
-  findAll() {
-    return `This action returns all products`;
+  async getProducts(filters: GetProductsDto) {
+    const { categorySlug, page = 1, pageSize = 10 } = filters;
+
+    const categoryId = categorySlug
+      ? await this.resolveCategoryId(categorySlug)
+      : null;
+
+    const query = this.drizzleService.db
+      .select({
+        product: ProductTable,
+        variants: ProductVariantTable,
+        totalRecords: sql`COUNT(*) OVER()`.as('total_records'),
+      })
+      .from(ProductTable)
+      .$dynamic();
+
+    this.applyFilters(query, filters, categoryId);
+
+    const offset = (page - 1) * pageSize;
+    query.limit(pageSize).offset(offset);
+
+    const products = await query;
+    const totalRecords = Number(products[0].totalRecords);
+
+    return {
+      data: products,
+      pagination: {
+        totalRecords: totalRecords,
+        page,
+        pageSize,
+        totalPages: Math.ceil(totalRecords / pageSize),
+      },
+    };
+  }
+
+  private applyFilters<T extends PgSelect>(
+    query: T,
+    filters: GetProductsDto,
+    categoryId: string | null,
+  ): T {
+    const { minPrice, maxPrice, variants = [] } = filters;
+
+    if (categoryId) {
+      query
+        .leftJoin(
+          ProductCategoryTable,
+          eq(ProductTable.id, ProductCategoryTable.productId),
+        )
+        .where(eq(ProductCategoryTable.categoryId, categoryId));
+    }
+
+    if (minPrice) {
+      query.where(gte(ProductTable.price, minPrice));
+    }
+    if (maxPrice) {
+      query.where(lte(ProductTable.price, maxPrice));
+    }
+
+    if (variants.length > 0) {
+      query.leftJoin(
+        ProductVariantTable,
+        eq(ProductTable.id, ProductVariantTable.productId),
+      );
+      variants.forEach(({ type, value }) => {
+        query.where(
+          and(
+            eq(ProductVariantTable.variantType, type),
+            eq(ProductVariantTable.value, value),
+          ),
+        );
+      });
+    }
+
+    return query;
+  }
+
+  //TODO: Cache Category via Redis
+  private async resolveCategoryId(slug: string): Promise<string | null> {
+    const category = await this.drizzleService.db.query.categories.findFirst({
+      where: (categories, { eq }) => eq(categories.slug, slug),
+    });
+
+    if (!category) {
+      throw new Error(`Category with slug '${slug}' not found.`);
+    }
+
+    return category.id;
   }
 
   findOne(id: number) {

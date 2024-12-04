@@ -51,7 +51,7 @@ export class CreateProductDto {
   @Min(0)
   price: number;
 
-  // @IsEnum(CurrencyEnum.Enum)
+  @IsEnum(CurrencyEnum.Enum)
   @IsOptional()
   currency?: CurrencyType;
 

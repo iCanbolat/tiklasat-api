@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   HttpCode,
+  Query,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -14,6 +15,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { ApiBody, ApiCreatedResponse, ApiOperation } from '@nestjs/swagger';
 import { CreateProductResponseDto } from './dto/create-product-response';
+import { GetProductsDto } from './dto/get-products.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -36,16 +38,22 @@ export class ProductsController {
     return this.productsService.create(createProductDto);
   }
 
+  @Public()
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  @HttpCode(201)
+  getProducts(@Query() filters: GetProductsDto) {
+    return this.productsService.getProducts(filters);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  getProduct(@Param('id') id: string) {
     return this.productsService.findOne(+id);
   }
-
+  @Get(':id')
+  getProductVariant(@Param('id') id: string) {
+    return this.productsService.findOne(+id);
+  }
+  
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
     return this.productsService.update(+id, updateProductDto);
