@@ -73,7 +73,7 @@ export class ProductsService {
   }
 
   async getProducts(filters: GetProductsDto) {
-    const { categorySlug, page = 1, pageSize = 10 } = filters;
+    const { categorySlug, page = 1, pageSize = 10, variants } = filters;
 
     const categoryId = categorySlug
       ? await this.resolveCategoryId(categorySlug)
@@ -82,7 +82,7 @@ export class ProductsService {
     const query = this.drizzleService.db
       .select({
         product: ProductTable,
-        variants: ProductVariantTable,
+        ...(variants?.length > 0 && { variants: ProductVariantTable }),
         totalRecords: sql`COUNT(*) OVER()`.as('total_records'),
       })
       .from(ProductTable)
@@ -116,7 +116,7 @@ export class ProductsService {
 
     if (categoryId) {
       query
-        .leftJoin(
+        .innerJoin(
           ProductCategoryTable,
           eq(ProductTable.id, ProductCategoryTable.productId),
         )
@@ -131,7 +131,7 @@ export class ProductsService {
     }
 
     if (variants.length > 0) {
-      query.leftJoin(
+      query.innerJoin(
         ProductVariantTable,
         eq(ProductTable.id, ProductVariantTable.productId),
       );
