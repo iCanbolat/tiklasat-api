@@ -12,7 +12,7 @@ import {
   pgEnum,
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { ProductTable } from './products.schema';
+import { ProductTable, ProductVariantTable } from './products.schema';
 import { UserTable } from './users.schema';
 
 export const ReviewTable = pgTable('reviews', {
@@ -21,6 +21,9 @@ export const ReviewTable = pgTable('reviews', {
     onDelete: 'cascade',
   }),
   userId: uuid('user_id').references(() => UserTable.id, {
+    onDelete: 'cascade',
+  }),
+  productVariantId: uuid('product_variant_id').references(() => ProductVariantTable.id, {
     onDelete: 'cascade',
   }),
   rating: integer('rating').notNull(),
@@ -36,5 +39,9 @@ export const reviewRelations = relations(ReviewTable, ({ one }) => ({
   user: one(UserTable, {
     fields: [ReviewTable.userId],
     references: [UserTable.id],
+  }),
+  variant: one(ProductVariantTable, {
+    fields: [ReviewTable.productVariantId],
+    references: [ProductVariantTable.id],
   }),
 }));

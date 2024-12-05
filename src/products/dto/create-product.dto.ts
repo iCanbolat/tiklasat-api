@@ -17,7 +17,7 @@ import {
   CurrencyType,
 } from 'src/database/schemas/products.schema';
 
-class VariantDto {
+export class VariantDto {
   @IsString()
   variantType: string;
 

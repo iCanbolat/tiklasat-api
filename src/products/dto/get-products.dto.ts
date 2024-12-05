@@ -1,4 +1,10 @@
-import { IsOptional, IsNumber, IsString, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsOptional,
+  IsNumber,
+  IsString,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class Variant {
@@ -12,31 +18,31 @@ class Variant {
 export class GetProductsDto {
   @IsOptional()
   @IsString()
-  categorySlug?: string; // Category slug as a string
+  categorySlug?: string;
 
   @IsOptional()
-  @Type(() => Number) // Transform to a number
+  @Type(() => Number)
   @IsNumber()
   minPrice?: number;
 
   @IsOptional()
-  @Type(() => Number) // Transform to a number
+  @Type(() => Number)
   @IsNumber()
   maxPrice?: number;
 
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true }) // Validate each object in the array
-  @Type(() => Variant) // Transform array items into Variant instances
+  @ValidateNested({ each: true })
+  @Type(() => Variant)
   variants?: Variant[];
 
   @IsOptional()
-  @Type(() => Number) // Transform to a number
+  @Type(() => Number)
   @IsNumber()
-  page?: number; // Page number for pagination
+  page?: number;
 
   @IsOptional()
-  @Type(() => Number) // Transform to a number
+  @Type(() => Number)
   @IsNumber()
-  pageSize?: number; // Number of items per page
+  pageSize?: number;
 }

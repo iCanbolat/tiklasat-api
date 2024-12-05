@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto } from '../dto/create-product.dto';
+import { UpdateProductDto } from '../dto/update-product.dto';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { ProductTable } from 'src/database/schemas';
 import { ProductVariantTable } from 'src/database/schemas/products.schema';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
 import slugify from 'slugify';
-import { GetProductsDto } from './dto/get-products.dto';
+import { GetProductsDto } from '../dto/get-products.dto';
 import { ProductCategoryTable } from 'src/database/schemas/categories.schema';
 import { PgSelect } from 'drizzle-orm/pg-core';
 
@@ -161,11 +161,36 @@ export class ProductsService {
     return category.id;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  async getProduct(id: string) {
+    return await this.drizzleService.db.query.products.findFirst({
+      where: (products, { eq }) => eq(products.id, id),
+      with: {
+        reviews: {
+          with: {
+            variant: true,
+            user: true,
+          },
+        },
+        variants: true,
+      },
+    });
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
+  async getProductVariant(id: string) {
+    return await this.drizzleService.db.query.productVariants.findFirst({
+      where: (products, { eq }) => eq(products.id, id),
+      with: {
+        reviews: {
+          with: {
+            variant: true,
+            user: true,
+          },
+        },
+      },
+    });
+  }
+
+  updateProduct(id: string, updateProductDto: UpdateProductDto) {
     return `This action updates a #${id} product`;
   }
 

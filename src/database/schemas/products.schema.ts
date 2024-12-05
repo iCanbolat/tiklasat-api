@@ -8,7 +8,6 @@ import {
   boolean,
   decimal,
   integer,
-  numeric,
   pgEnum,
 } from 'drizzle-orm/pg-core';
 import { ReviewTable } from './reviews.schema';
@@ -56,6 +55,9 @@ export const ProductImageTable = pgTable('product_images', {
   productId: uuid('product_id').references(() => ProductTable.id, {
     onDelete: 'cascade',
   }),
+  productVariantId: uuid('product_variant_id').references(() => ProductVariantTable.id, {
+    onDelete: 'cascade',
+  }),
   url: varchar('url', { length: 1024 }).notNull(),
 });
 
@@ -66,16 +68,22 @@ export const productImageRelations = relations(
       fields: [ProductImageTable.productId],
       references: [ProductTable.id],
     }),
+    productVariant: one(ProductVariantTable, {
+      fields: [ProductImageTable.productVariantId],
+      references: [ProductVariantTable.id],
+    }),
   }),
 );
 
 export const productVariantRelations = relations(
   ProductVariantTable,
-  ({ one }) => ({
+  ({ one, many }) => ({
     product: one(ProductTable, {
       fields: [ProductVariantTable.productId],
       references: [ProductTable.id],
     }),
+    reviews: many(ReviewTable),
+    images: many(ProductImageTable),
   }),
 );
 
