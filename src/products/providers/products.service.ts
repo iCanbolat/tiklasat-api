@@ -4,7 +4,7 @@ import { UpdateProductDto } from '../dto/update-product.dto';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { ProductTable } from 'src/database/schemas';
 import { ProductVariantTable } from 'src/database/schemas/products.schema';
-import { and, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
 import slugify from 'slugify';
 import { GetProductsDto } from '../dto/get-products.dto';
@@ -83,9 +83,10 @@ export class ProductsService {
       .select({
         product: ProductTable,
         ...(variants?.length > 0 && { variants: ProductVariantTable }),
-        totalRecords: sql`COUNT(*) OVER()`.as('total_records'),
+        totalRecords: count(),
       })
       .from(ProductTable)
+      .groupBy(ProductTable.id, ProductVariantTable.id)
       .$dynamic();
 
     this.applyFilters(query, filters, categoryId);
@@ -94,7 +95,7 @@ export class ProductsService {
     query.limit(pageSize).offset(offset);
 
     const products = await query;
-    const totalRecords = Number(products[0].totalRecords);
+    const totalRecords = products[0].totalRecords;
 
     return {
       data: products,
@@ -107,11 +108,11 @@ export class ProductsService {
     };
   }
 
-  private applyFilters<T extends PgSelect>(
-    query: T,
+  private applyFilters (
+    query: PgSelect,
     filters: GetProductsDto,
     categoryId: string | null,
-  ): T {
+  ): PgSelect {
     const { minPrice, maxPrice, variants = [] } = filters;
 
     if (categoryId) {
@@ -204,25 +205,37 @@ export class ProductsService {
       );
     }
 
-    const updatedProductObject = Object.assign({}, existingProduct, {
-      description,
-      isFeatured,
-      name,
-      slug: slugify(name, { lower: true }),
-      price,
-      stockQuantity,
-    });
-
     const [updatedCategory] = await this.drizzleService.db
       .update(ProductTable)
-      .set(updatedProductObject)
+      .set({
+        description,
+        isFeatured,
+        name,
+        slug: slugify(name, { lower: true }),
+        price,
+        stockQuantity,
+      })
       .where(eq(ProductTable.id, id))
       .returning();
-      
+
     return updatedCategory;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  async removeProduct(id: string) {
+    const existingProduct =
+      await this.drizzleService.db.query.products.findFirst({
+        where: (products, { eq }) => eq(products.id, id),
+      });
+
+    if (!existingProduct) {
+      throw Error('Product not found.');
+    }
+
+    await this.drizzleService.db
+      .delete(ProductTable)
+      .where(eq(ProductTable.id, id))
+      .execute();
+
+    return `This action removed${id} product`;
   }
 }

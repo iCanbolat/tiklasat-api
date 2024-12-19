@@ -60,6 +60,6 @@ export class ProductsController {
   @Public()
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.productsService.remove(+id);
+    return this.productsService.removeProduct(id);
   }
 }

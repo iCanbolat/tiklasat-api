@@ -134,11 +134,19 @@ export class CategoriesService {
 
   async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto) {
     const { imageUrl, name, slug } = updateCategoryDto;
+
+    const categoryWithProducts = await this.getCategory(id);
+
+    if (!categoryWithProducts) {
+      throw new Error('Category not found');
+    }
+
     const [updatedCategory] = await this.drizzleService.db
       .update(CategoryTable)
       .set({ imageUrl, name, slug })
       .where(eq(CategoryTable.id, id))
       .returning();
+      
     return updatedCategory;
   }
 }
