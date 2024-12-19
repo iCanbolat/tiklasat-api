@@ -52,12 +52,6 @@ export class ProductsController {
   }
 
   @Public()
-  @Get('variant/:id')
-  getProductVariant(@Param('id') id: string) {
-    return this.productsService.getProductVariant(id);
-  }
-
-  @Public()
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
     return this.productsService.updateProduct(id, updateProductDto);

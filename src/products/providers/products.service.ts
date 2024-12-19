@@ -176,22 +176,50 @@ export class ProductsService {
     });
   }
 
-  async getProductVariant(id: string) {
-    return await this.drizzleService.db.query.productVariants.findFirst({
-      where: (products, { eq }) => eq(products.id, id),
-      with: {
-        reviews: {
-          with: {
-            variant: true,
-            user: true,
-          },
-        },
-      },
-    });
-  }
+  async updateProduct(id: string, updateProductDto: UpdateProductDto) {
+    const {
+      description,
+      isFeatured,
+      name,
+      price,
+      stockQuantity,
+      categoryIdOrName,
+      productIdsToUnlink,
+      productIdsToLink,
+    } = updateProductDto;
 
-  updateProduct(id: string, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+    const existingProduct =
+      await this.drizzleService.db.query.products.findFirst({
+        where: (products, { eq }) => eq(products.id, id),
+      });
+
+    if (!existingProduct) {
+      throw Error('Product not found.');
+    }
+
+    if (categoryIdOrName) {
+      this.categoryService.updateOrCreateCategoryWithProducts(
+        categoryIdOrName,
+        { productIdsToLink, productIdsToUnlink },
+      );
+    }
+
+    const updatedProductObject = Object.assign({}, existingProduct, {
+      description,
+      isFeatured,
+      name,
+      slug: slugify(name, { lower: true }),
+      price,
+      stockQuantity,
+    });
+
+    const [updatedCategory] = await this.drizzleService.db
+      .update(ProductTable)
+      .set(updatedProductObject)
+      .where(eq(ProductTable.id, id))
+      .returning();
+      
+    return updatedCategory;
   }
 
   remove(id: number) {
