@@ -41,8 +41,8 @@ export class ProductsController {
   @Public()
   @Get()
   @HttpCode(201)
-  getProducts(@Query() filters: GetProductsDto) {
-    return this.productsService.getProducts(filters);
+  getProducts(@Query() getProductsDto: GetProductsDto) {
+    return this.productsService.findAll(getProductsDto);
   }
 
   @Public()

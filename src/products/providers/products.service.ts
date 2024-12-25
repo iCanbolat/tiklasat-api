@@ -4,19 +4,32 @@ import { UpdateProductDto } from '../dto/update-product.dto';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { ProductTable } from 'src/database/schemas';
 import { ProductVariantTable } from 'src/database/schemas/products.schema';
-import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
 import slugify from 'slugify';
 import { GetProductsDto } from '../dto/get-products.dto';
 import { ProductCategoryTable } from 'src/database/schemas/categories.schema';
 import { PgSelect } from 'drizzle-orm/pg-core';
+import { AbstractCrudService } from 'src/common/services/base-service';
+
+type PaginatedResult<T> = {
+  data: T[];
+  pagination: {
+    totalRecords: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+};
 
 @Injectable()
-export class ProductsService {
+export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   constructor(
-    private readonly drizzleService: DrizzleService,
+    drizzleService: DrizzleService,
     private readonly categoryService: CategoriesService,
-  ) {}
+  ) {
+    super(drizzleService, ProductTable);
+  }
 
   async create(createProductDto: CreateProductDto) {
     const {
@@ -72,51 +85,45 @@ export class ProductsService {
     return product;
   }
 
-  async getProducts(filters: GetProductsDto) {
-    const { categorySlug, page = 1, pageSize = 10, variants } = filters;
-
-    const categoryId = categorySlug
-      ? await this.resolveCategoryId(categorySlug)
-      : null;
+  async findAll(getProductsDto: GetProductsDto): Promise<PaginatedResult<any>> {
+    const { variants } = getProductsDto;
 
     const query = this.drizzleService.db
       .select({
         product: ProductTable,
         ...(variants?.length > 0 && { variants: ProductVariantTable }),
-        totalRecords: count(),
       })
       .from(ProductTable)
-      .groupBy(ProductTable.id, ProductVariantTable.id)
+      .groupBy(ProductTable.id, variants?.length > 0 && ProductVariantTable.id)
       .$dynamic();
 
-    this.applyFilters(query, filters, categoryId);
-
-    const offset = (page - 1) * pageSize;
-    query.limit(pageSize).offset(offset);
-
-    const products = await query;
-    const totalRecords = products[0].totalRecords;
-
-    return {
-      data: products,
-      pagination: {
-        totalRecords: totalRecords,
-        page,
-        pageSize,
-        totalPages: Math.ceil(totalRecords / pageSize),
-      },
-    };
+    return await this.getPaginatedResult<typeof query>(getProductsDto, query);
   }
 
-  private applyFilters (
-    query: PgSelect,
-    filters: GetProductsDto,
-    categoryId: string | null,
-  ): PgSelect {
-    const { minPrice, maxPrice, variants = [] } = filters;
+  // async getProducts(filters: GetProductsDto) {
+  //   const { page = 1, pageSize = 10 } = filters;
 
-    if (categoryId) {
-      query
+  //   const query = this.drizzleService.db
+  //     .select({
+  //       product: ProductTable,
+  //       ...(filters.variants?.length > 0 && { variants: ProductVariantTable }),
+  //     })
+  //     .from(ProductTable)
+  //     .groupBy(
+  //       ProductTable.id,
+  //       filters.variants?.length > 0 && ProductVariantTable.id,
+  //     )
+  //     .$dynamic();
+
+  //   return await this.findAll<typeof query>(filters, { page, pageSize }, query);
+  // }
+
+  protected async applyFilters(query: any, filters: GetProductsDto) {
+    const { categorySlug, minPrice, maxPrice, variants } = filters;
+
+    if (categorySlug) {
+      const categoryId = await this.resolveCategoryId(categorySlug);
+      query = query
         .innerJoin(
           ProductCategoryTable,
           eq(ProductTable.id, ProductCategoryTable.productId),
@@ -125,19 +132,19 @@ export class ProductsService {
     }
 
     if (minPrice) {
-      query.where(gte(ProductTable.price, minPrice));
+      query = query.where(gte(ProductTable.price, minPrice));
     }
     if (maxPrice) {
-      query.where(lte(ProductTable.price, maxPrice));
+      query = query.where(lte(ProductTable.price, maxPrice));
     }
 
-    if (variants.length > 0) {
-      query.innerJoin(
+    if (variants?.length > 0) {
+      query = query.innerJoin(
         ProductVariantTable,
         eq(ProductTable.id, ProductVariantTable.productId),
       );
       variants.forEach(({ type, value }) => {
-        query.where(
+        query = query.where(
           and(
             eq(ProductVariantTable.variantType, type),
             eq(ProductVariantTable.value, value),

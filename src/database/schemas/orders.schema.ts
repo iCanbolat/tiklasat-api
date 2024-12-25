@@ -42,7 +42,6 @@ export const OrderTable = pgTable('orders', {
   status: OrderStatusEnum('status').default(OrderStatus.Enum.PLACED).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdateFn(() => sql`now()`),
-
 });
 
 export const orderRelations = relations(OrderTable, ({ many, one }) => ({
