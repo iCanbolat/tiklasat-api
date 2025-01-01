@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 import { DrizzleService } from 'src/database/drizzle.service';
-import { PgSelectBase, PgTable } from 'drizzle-orm/pg-core';
+import { PgSelect, PgTable } from 'drizzle-orm/pg-core';
 
 @Injectable()
 export abstract class AbstractCrudService<T extends PgTable<any>> {
@@ -14,14 +14,25 @@ export abstract class AbstractCrudService<T extends PgTable<any>> {
     this.drizzleService = drizzleService;
   }
 
-  async getPaginatedResult<F>(filters: any, baseQuery?: F) {
+  protected abstract findAll<F>(filters: F): any;
+
+  protected abstract findOne(id: string): any;
+
+  protected abstract create(data: any): any;
+
+  protected abstract applyFilters?<F>(query: any, filters: F): any;
+
+  async getPaginatedResult(filters: any, baseQuery?: PgSelect) {
     const { page, pageSize } = filters || {};
     const offset = (page - 1) * pageSize;
 
-    let query: PgSelectBase<any, any, any>;
+    let query: PgSelect;
 
     if (baseQuery) {
-      query = this.applyFilters(baseQuery, filters);
+      query = this.applyFilters(
+        baseQuery.limit(pageSize).offset(offset),
+        filters,
+      );
     } else {
       query = this.applyFilters(
         this.drizzleService.db
@@ -34,7 +45,7 @@ export abstract class AbstractCrudService<T extends PgTable<any>> {
     }
 
     const data = await query;
-    const totalRecords = await this.getTotalRecords<F>(filters);
+    const totalRecords = await this.getTotalRecords(filters);
 
     return {
       data,
@@ -47,10 +58,6 @@ export abstract class AbstractCrudService<T extends PgTable<any>> {
     };
   }
 
-  protected abstract findAll<F>(filters: F): any;
-
-  protected abstract applyFilters?<F>(query: any, filters: F): any;
-
   private async getTotalRecords<F>(filters: F): Promise<number> {
     const countQuery = this.drizzleService.db
       .select({ count: sql<number>`COUNT(*)` })
@@ -58,7 +65,7 @@ export abstract class AbstractCrudService<T extends PgTable<any>> {
 
     const query = this.applyFilters(countQuery, filters);
 
-    const [{ count }] = await query;
+    const [{ count } = { count: 0 }] = await query;
     return Number(count);
   }
 }

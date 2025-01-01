@@ -23,12 +23,6 @@ export class VariantDto {
 
   @IsString()
   value: string;
-
-  @IsNumber()
-  price?: number;
-
-  @IsNumber()
-  stockQuantity: number;
 }
 
 export class CreateProductDto {
@@ -44,9 +38,10 @@ export class CreateProductDto {
   @IsString()
   categoryIdOrName?: string;
 
-  @ApiProperty({
-    description: 'Base Price of the product',
-  })
+  @IsOptional()
+  @IsString()
+  parentId?: string;
+
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
@@ -55,17 +50,28 @@ export class CreateProductDto {
   @IsOptional()
   currency?: CurrencyType;
 
+  @IsOptional()
   @IsInt()
   @Min(0)
-  @IsOptional()
   stockQuantity?: number;
 
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+  
   @IsBoolean()
   @IsOptional()
-  isFeatured: boolean;
+  isVariant: boolean;
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => VariantDto)
-  variants: VariantDto[];
+  attributes?: VariantDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductDto)
+  variants?: CreateProductDto[];
 }

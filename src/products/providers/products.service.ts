@@ -3,14 +3,16 @@ import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { ProductTable } from 'src/database/schemas';
-import { ProductVariantTable } from 'src/database/schemas/products.schema';
-import { and, eq, gte, lte } from 'drizzle-orm';
+import {
+  ProductImageTable,
+  ProductVariantTable,
+} from 'src/database/schemas/products.schema';
+import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
-import slugify from 'slugify';
 import { GetProductsDto } from '../dto/get-products.dto';
 import { ProductCategoryTable } from 'src/database/schemas/categories.schema';
-import { PgSelect } from 'drizzle-orm/pg-core';
 import { AbstractCrudService } from 'src/common/services/base-service';
+import slugify from 'slugify';
 
 type PaginatedResult<T> = {
   data: T[];
@@ -32,15 +34,32 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   }
 
   async create(createProductDto: CreateProductDto) {
+    const { variants } = createProductDto;
+
+    const parentProductId = await this.createProduct(createProductDto);
+
+    variants.map((variant) => (variant.parentId = parentProductId));
+
+    if (variants?.length > 0) {
+      for (const variant of variants) {
+        await this.createProduct(variant);
+      }
+    }
+    return { message: 'Product successfully created' };
+  }
+
+  private async createProduct(createProductDto: Partial<CreateProductDto>): Promise<string> {
     const {
+      categoryIdOrName,
+      attributes,
       isFeatured,
       name,
       price,
-      variants,
       currency,
       description,
       stockQuantity,
-      categoryIdOrName,
+      isVariant,
+      parentId,
     } = createProductDto;
 
     const [product] = await this.drizzleService.db
@@ -48,13 +67,15 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       .values({
         name,
         slug: slugify(name, { lower: true }),
-        price,
         isFeatured,
-        stockQuantity,
+        price,
         currency,
         description,
+        stockQuantity,
+        isVariant: parentId ? true : isVariant,
+        parentId,
       })
-      .returning();
+      .returning({ id: ProductTable.id });
 
     if (categoryIdOrName) {
       this.categoryService.updateOrCreateCategoryWithProducts(
@@ -63,60 +84,125 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       );
     }
 
-    if (variants && variants.length > 0) {
-      const variantRecords = variants.map((variant) => ({
-        productId: product.id,
-        variantType: variant.variantType,
-        value: variant.value,
-        price: variant.price,
-        stockQuantity: variant.stockQuantity,
-      }));
-
-      await this.drizzleService.db
-        .insert(ProductVariantTable)
-        .values(variantRecords);
-
-      const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
-      await this.drizzleService.db
-        .update(ProductTable)
-        .set({ stockQuantity: totalStock })
-        .where(eq(ProductTable.id, product.id));
+    if (attributes?.length > 0) {
+      await this.drizzleService.db.insert(ProductVariantTable).values(
+        attributes.map((attr) => ({
+          productId: product.id,
+          variantType: slugify(attr.variantType, { lower: true }),
+          value: slugify(attr.value, { lower: true }),
+        })),
+      );
     }
-    return product;
+    return product.id;
+  }
+
+  async findOne(productId: string) {
+    const [parentProduct] = await this.drizzleService.db
+      .select({
+        product: ProductTable,
+        attributes:
+          sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
+            'attributes',
+          ),
+      })
+      .from(ProductTable)
+      .leftJoin(
+        ProductVariantTable,
+        eq(ProductVariantTable.productId, ProductTable.id),
+      )
+      .where(eq(ProductTable.id, productId))
+      .groupBy(ProductTable.id)
+      .execute();
+
+    if (!parentProduct) {
+      throw new Error(`Product with id ${productId} not found.`);
+    }
+
+    const variants = await this.drizzleService.db
+      .select({
+        variant: ProductTable,
+        attributes:
+          sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
+            'attributes',
+          ),
+      })
+      .from(ProductTable)
+      .leftJoin(
+        ProductVariantTable,
+        eq(ProductVariantTable.productId, ProductTable.id),
+      )
+      .where(eq(ProductTable.parentId, productId))
+      .groupBy(ProductTable.id)
+      .execute();
+
+    const structuredResponse = {
+      product: {
+        ...parentProduct.product,
+        attributes: parentProduct.attributes ?? [],
+      },
+      variants: variants.map((row) => ({
+        ...row.variant,
+        attributes: row.attributes ?? [],
+      })),
+    };
+
+    return structuredResponse;
+  }
+
+  private async findOneProduct(productId: string, isVariant: boolean = false) {
+    const query = this.drizzleService.db
+      .select({
+        product: ProductTable,
+        images:
+          sql`array_agg(jsonb_build_object('id', ${ProductImageTable.id}, 'url', ${ProductImageTable.url}))`.as(
+            'images',
+          ),
+        ...(isVariant && {
+          attributes:
+            sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
+              'attributes',
+            ),
+        }),
+      })
+      .from(ProductTable)
+      .leftJoin(
+        ProductImageTable,
+        eq(ProductImageTable.productId, ProductTable.id),
+      )
+      .where(eq(ProductTable.id, productId));
+
+    if (isVariant) {
+      query.leftJoin(
+        ProductVariantTable,
+        eq(ProductVariantTable.productId, ProductTable.id),
+      );
+    }
+
+    return query.groupBy(ProductTable.id).execute();
   }
 
   async findAll(getProductsDto: GetProductsDto): Promise<PaginatedResult<any>> {
     const { variants } = getProductsDto;
 
-    const query = this.drizzleService.db
+    let query = this.drizzleService.db
       .select({
         product: ProductTable,
-        ...(variants?.length > 0 && { variants: ProductVariantTable }),
+        ...(variants?.length > 0 && {
+          variants:
+            sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
+              'attributes',
+            ),
+        }),
       })
       .from(ProductTable)
-      .groupBy(ProductTable.id, variants?.length > 0 && ProductVariantTable.id)
       .$dynamic();
 
-    return await this.getPaginatedResult<typeof query>(getProductsDto, query);
+    if (variants?.length > 0) {
+      query = query.groupBy(ProductTable.id);
+    }
+
+    return await this.getPaginatedResult(getProductsDto, query);
   }
-
-  // async getProducts(filters: GetProductsDto) {
-  //   const { page = 1, pageSize = 10 } = filters;
-
-  //   const query = this.drizzleService.db
-  //     .select({
-  //       product: ProductTable,
-  //       ...(filters.variants?.length > 0 && { variants: ProductVariantTable }),
-  //     })
-  //     .from(ProductTable)
-  //     .groupBy(
-  //       ProductTable.id,
-  //       filters.variants?.length > 0 && ProductVariantTable.id,
-  //     )
-  //     .$dynamic();
-
-  //   return await this.findAll<typeof query>(filters, { page, pageSize }, query);
-  // }
 
   protected async applyFilters(query: any, filters: GetProductsDto) {
     const { categorySlug, minPrice, maxPrice, variants } = filters;
@@ -141,7 +227,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     if (variants?.length > 0) {
       query = query.innerJoin(
         ProductVariantTable,
-        eq(ProductTable.id, ProductVariantTable.productId),
+        eq(ProductVariantTable.productId, ProductTable.id),
       );
       variants.forEach(({ type, value }) => {
         query = query.where(
@@ -151,6 +237,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
           ),
         );
       });
+      query = query.groupBy(ProductTable.id);
     }
 
     return query;
@@ -168,22 +255,6 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     return category.id;
   }
-
-  async getProduct(id: string) {
-    return await this.drizzleService.db.query.products.findFirst({
-      where: (products, { eq }) => eq(products.id, id),
-      with: {
-        reviews: {
-          with: {
-            variant: true,
-            user: true,
-          },
-        },
-        variants: true,
-      },
-    });
-  }
-
   async updateProduct(id: string, updateProductDto: UpdateProductDto) {
     const {
       description,

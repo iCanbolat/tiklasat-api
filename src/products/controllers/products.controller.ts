@@ -48,7 +48,7 @@ export class ProductsController {
   @Public()
   @Get(':id')
   getProduct(@Param('id') id: string) {
-    return this.productsService.getProduct(id);
+    return this.productsService.findOne(id);
   }
 
   @Public()

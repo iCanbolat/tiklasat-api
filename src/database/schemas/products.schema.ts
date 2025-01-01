@@ -29,8 +29,10 @@ export const ProductTable = pgTable('products', {
     .$type<number>(),
   slug: varchar('slug', { length: 255 }).notNull(),
   currency: CurrencyEnumCol('currency').default('USD'),
-  stockQuantity: integer('total_stock_quantity').default(0).notNull(),
+  stockQuantity: integer('stock_quantity').default(0).notNull(),
   isFeatured: boolean('is_featured').default(false).notNull(),
+  isVariant: boolean('is_variant').default(false).notNull(),
+  parentId: uuid('parent_id'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).$onUpdate(
     () => new Date(),
@@ -44,18 +46,11 @@ export const ProductVariantTable = pgTable('product_variants', {
   }),
   variantType: varchar('variant_type', { length: 50 }).notNull(),
   value: varchar('value', { length: 50 }).notNull(),
-  stockQuantity: integer('stock_quantity').default(0).notNull(),
-  price: decimal('price', { precision: 10, scale: 2 })
-    .notNull()
-    .$type<number>(),
 });
 
 export const ProductImageTable = pgTable('product_images', {
   id: uuid('id').primaryKey().defaultRandom(),
   productId: uuid('product_id').references(() => ProductTable.id, {
-    onDelete: 'cascade',
-  }),
-  productVariantId: uuid('product_variant_id').references(() => ProductVariantTable.id, {
     onDelete: 'cascade',
   }),
   url: varchar('url', { length: 1024 }).notNull(),
@@ -68,10 +63,6 @@ export const productImageRelations = relations(
       fields: [ProductImageTable.productId],
       references: [ProductTable.id],
     }),
-    productVariant: one(ProductVariantTable, {
-      fields: [ProductImageTable.productVariantId],
-      references: [ProductVariantTable.id],
-    }),
   }),
 );
 
@@ -79,18 +70,23 @@ export const productVariantRelations = relations(
   ProductVariantTable,
   ({ one, many }) => ({
     product: one(ProductTable, {
+      relationName: 'productAttributes',
       fields: [ProductVariantTable.productId],
       references: [ProductTable.id],
     }),
-    reviews: many(ReviewTable),
-    images: many(ProductImageTable),
   }),
 );
 
 export const productRelations = relations(ProductTable, ({ many, one }) => ({
   images: many(ProductImageTable),
-  variants: many(ProductVariantTable),
+  productVariants: many(ProductTable, { relationName: 'productVariants' }),
+  parent: one(ProductTable, {
+    relationName: 'productVariants',
+    fields: [ProductTable.parentId],
+    references: [ProductTable.id],
+  }),
   reviews: many(ReviewTable),
+  attributes: many(ProductVariantTable, { relationName: 'productAttributes' }),
   orderItems: many(OrderItemTable),
   categories: many(ProductCategoryTable),
 }));
