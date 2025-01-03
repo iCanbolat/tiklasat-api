@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { DrizzleService } from 'src/database/drizzle.service';
-import { PgSelect, PgTable } from 'drizzle-orm/pg-core';
+import { PgSelect, PgTable, TableConfig } from 'drizzle-orm/pg-core';
 
 @Injectable()
-export abstract class AbstractCrudService<T extends PgTable<any>> {
+export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
   protected readonly drizzleService: DrizzleService;
 
   constructor(
@@ -21,6 +21,10 @@ export abstract class AbstractCrudService<T extends PgTable<any>> {
   protected abstract create(data: any): any;
 
   protected abstract applyFilters?<F>(query: any, filters: F): any;
+
+  protected abstract update(id: string, data: any): any;
+
+  protected abstract delete(id: string): any;
 
   async getPaginatedResult(filters: any, baseQuery?: PgSelect) {
     const { page, pageSize } = filters || {};

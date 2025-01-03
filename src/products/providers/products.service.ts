@@ -48,7 +48,9 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return { message: 'Product successfully created' };
   }
 
-  private async createProduct(createProductDto: Partial<CreateProductDto>): Promise<string> {
+  private async createProduct(
+    createProductDto: Partial<CreateProductDto>,
+  ): Promise<string> {
     const {
       categoryIdOrName,
       attributes,
@@ -97,52 +99,24 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   }
 
   async findOne(productId: string) {
-    const [parentProduct] = await this.drizzleService.db
-      .select({
-        product: ProductTable,
-        attributes:
-          sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
-            'attributes',
-          ),
-      })
-      .from(ProductTable)
-      .leftJoin(
-        ProductVariantTable,
-        eq(ProductVariantTable.productId, ProductTable.id),
-      )
-      .where(eq(ProductTable.id, productId))
-      .groupBy(ProductTable.id)
-      .execute();
+    const [parentProduct] = await this.findOneProduct(productId);
 
     if (!parentProduct) {
       throw new Error(`Product with id ${productId} not found.`);
     }
 
-    const variants = await this.drizzleService.db
-      .select({
-        variant: ProductTable,
-        attributes:
-          sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
-            'attributes',
-          ),
-      })
-      .from(ProductTable)
-      .leftJoin(
-        ProductVariantTable,
-        eq(ProductVariantTable.productId, ProductTable.id),
-      )
-      .where(eq(ProductTable.parentId, productId))
-      .groupBy(ProductTable.id)
-      .execute();
+    const variants = await this.findOneProduct(productId, true);
 
     const structuredResponse = {
       product: {
         ...parentProduct.product,
         attributes: parentProduct.attributes ?? [],
+        images: parentProduct.images ?? [],
       },
       variants: variants.map((row) => ({
-        ...row.variant,
+        ...row.product,
         attributes: row.attributes ?? [],
+        images: row.images ?? [],
       })),
     };
 
@@ -150,35 +124,26 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   }
 
   private async findOneProduct(productId: string, isVariant: boolean = false) {
-    const query = this.drizzleService.db
+    const product = await this.drizzleService.db
       .select({
         product: ProductTable,
-        images:
-          sql`array_agg(jsonb_build_object('id', ${ProductImageTable.id}, 'url', ${ProductImageTable.url}))`.as(
-            'images',
-          ),
-        ...(isVariant && {
-          attributes:
-            sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
-              'attributes',
-            ),
-        }),
+        images: this.getAggregatedImages(),
+        attributes: this.getAggregatedAttributes(),
       })
       .from(ProductTable)
       .leftJoin(
         ProductImageTable,
         eq(ProductImageTable.productId, ProductTable.id),
       )
-      .where(eq(ProductTable.id, productId));
-
-    if (isVariant) {
-      query.leftJoin(
+      .leftJoin(
         ProductVariantTable,
         eq(ProductVariantTable.productId, ProductTable.id),
-      );
-    }
+      )
+      .where(eq(isVariant ? ProductTable.parentId : ProductTable.id, productId))
+      .groupBy(ProductTable.id)
+      .execute();
 
-    return query.groupBy(ProductTable.id).execute();
+    return product;
   }
 
   async findAll(getProductsDto: GetProductsDto): Promise<PaginatedResult<any>> {
@@ -188,10 +153,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       .select({
         product: ProductTable,
         ...(variants?.length > 0 && {
-          variants:
-            sql`array_agg(jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value}))`.as(
-              'attributes',
-            ),
+          attributes: this.getAggregatedAttributes(),
         }),
       })
       .from(ProductTable)
@@ -243,7 +205,6 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return query;
   }
 
-  //TODO: Cache Category via Redis
   private async resolveCategoryId(slug: string): Promise<string | null> {
     const category = await this.drizzleService.db.query.categories.findFirst({
       where: (categories, { eq }) => eq(categories.slug, slug),
@@ -255,7 +216,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     return category.id;
   }
-  async updateProduct(id: string, updateProductDto: UpdateProductDto) {
+  async update(id: string, updateProductDto: UpdateProductDto) {
     const {
       description,
       isFeatured,
@@ -299,14 +260,19 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return updatedCategory;
   }
 
-  async removeProduct(id: string) {
-    const existingProduct =
-      await this.drizzleService.db.query.products.findFirst({
-        where: (products, { eq }) => eq(products.id, id),
-      });
+  async delete(id: string) {
+    const product = await this.findOne(id);
 
-    if (!existingProduct) {
-      throw Error('Product not found.');
+    if (product.variants.length > 0) {
+      await this.drizzleService.db
+        .delete(ProductTable)
+        .where(
+          inArray(ProductTable.id, [
+            id,
+            ...product.variants.map((variant) => variant.id),
+          ]),
+        )
+        .execute();
     }
 
     await this.drizzleService.db
@@ -314,6 +280,18 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       .where(eq(ProductTable.id, id))
       .execute();
 
-    return `This action removed${id} product`;
+    return `This action removed${id} product and its variants`;
+  }
+
+  private getAggregatedImages() {
+    return sql`array_agg(
+      jsonb_build_object('id', ${ProductImageTable.id}, 'url', ${ProductImageTable.url})
+      ) FILTER (WHERE ${ProductImageTable.id} IS NOT NULL)`.as('images');
+  }
+
+  private getAggregatedAttributes() {
+    return sql`array_agg(
+      jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value})
+      ) FILTER (WHERE ${ProductVariantTable.id} IS NOT NULL)`.as('attributes');
   }
 }

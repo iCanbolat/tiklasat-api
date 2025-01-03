@@ -54,12 +54,12 @@ export class ProductsController {
   @Public()
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.updateProduct(id, updateProductDto);
+    return this.productsService.update(id, updateProductDto);
   }
 
   @Public()
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.productsService.removeProduct(id);
+    return this.productsService.delete(id);
   }
 }
