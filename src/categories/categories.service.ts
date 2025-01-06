@@ -31,24 +31,40 @@ export class CategoriesService {
   }
 
   async updateOrCreateCategoryWithProducts(
-    categoryIdOrName: string,
+    categoryName: string,
     { productIdsToLink, productIdsToUnlink }: UpdateCategoryProductsDto,
   ) {
     let category: { id: string };
 
-    if (!isUUID(categoryIdOrName)) {
+    const categoryExists =
+      await this.drizzleService.db.query.categories.findFirst({
+        where: (categories, { eq }) =>
+          eq(categories.slug, slugify(categoryName, { lower: true })),
+      });
+
+    if (categoryExists) {
+      category = categoryExists;
+    } else {
       category = await this.create({
-        name: categoryIdOrName,
-        slug: slugify(categoryIdOrName, { lower: true }),
+        name: categoryName,
+        slug: slugify(categoryName, { lower: true }),
         imageUrl: '',
       });
-    } else {
-      category = await this.getCategory(categoryIdOrName);
     }
 
-    if (!category) {
-      throw new Error('Category not found');
-    }
+    // if (!isUUID(categoryIdOrName)) {
+    //   category = await this.create({
+    //     name: categoryIdOrName,
+    //     slug: slugify(categoryIdOrName, { lower: true }),
+    //     imageUrl: '',
+    //   });
+    // } else {
+    //   category = await this.getCategory(categoryIdOrName);
+    // }
+
+    // if (!category) {
+    //   throw new Error('Category not found');
+    // }
 
     if (productIdsToLink && productIdsToLink.length > 0) {
       const links = productIdsToLink.map((productId) => ({
@@ -146,7 +162,7 @@ export class CategoriesService {
       .set({ imageUrl, name, slug })
       .where(eq(CategoryTable.id, id))
       .returning();
-      
+
     return updatedCategory;
   }
 }

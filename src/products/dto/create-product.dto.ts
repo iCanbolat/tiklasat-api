@@ -1,4 +1,3 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsString,
@@ -17,12 +16,17 @@ import {
   CurrencyType,
 } from 'src/database/schemas/products.schema';
 
-export class VariantDto {
+export class AttributeDto {
   @IsString()
   variantType: string;
 
   @IsString()
   value: string;
+}
+
+export class ImageDto {
+  @IsString()
+  url: string;
 }
 
 export class CreateProductDto {
@@ -36,7 +40,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
-  categoryIdOrName?: string;
+  categoryName?: string;
 
   @IsOptional()
   @IsString()
@@ -66,8 +70,14 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => VariantDto)
-  attributes?: VariantDto[];
+  @Type(() => AttributeDto)
+  attributes?: AttributeDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ImageDto)
+  images?: ImageDto[];
 
   @IsOptional()
   @IsArray()

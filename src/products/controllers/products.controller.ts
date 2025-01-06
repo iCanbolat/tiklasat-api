@@ -14,8 +14,7 @@ import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { ApiBody, ApiCreatedResponse, ApiOperation } from '@nestjs/swagger';
-import { CreateProductResponseDto } from '../dto/create-product-response';
-import { GetProductsDto } from '../dto/get-products.dto';
+ import { GetProductsDto } from '../dto/get-products.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -32,8 +31,7 @@ export class ProductsController {
   @ApiBody({ type: CreateProductDto, description: 'Product create details' })
   @ApiCreatedResponse({
     description: 'Product successfully created',
-    type: CreateProductResponseDto,
-  })
+   })
   create(@Body() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
   }

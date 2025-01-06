@@ -7,22 +7,21 @@ import {
   ProductImageTable,
   ProductVariantTable,
 } from 'src/database/schemas/products.schema';
-import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, SQL, sql } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
 import { GetProductsDto } from '../dto/get-products.dto';
 import { ProductCategoryTable } from 'src/database/schemas/categories.schema';
 import { AbstractCrudService } from 'src/common/services/base-service';
 import slugify from 'slugify';
-
-type PaginatedResult<T> = {
-  data: T[];
-  pagination: {
-    totalRecords: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-  };
-};
+import {
+  FindAllProductsReturnDto,
+  IProduct,
+  IProductAttributes,
+  IProductImages,
+  ProductResponseDto,
+  ProductServiceResponse,
+} from '../interfaces';
+import { PaginatedResults } from 'src/common/interfaces';
 
 @Injectable()
 export class ProductsService extends AbstractCrudService<typeof ProductTable> {
@@ -33,26 +32,51 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     super(drizzleService, ProductTable);
   }
 
-  async create(createProductDto: CreateProductDto) {
+  async create(
+    createProductDto: CreateProductDto,
+  ): Promise<ProductResponseDto> {
     const { variants } = createProductDto;
 
-    const parentProductId = await this.createProduct(createProductDto);
+    const parentProduct = await this.createProduct(createProductDto);
 
-    variants.map((variant) => (variant.parentId = parentProductId));
+    let variantProducts = [];
 
     if (variants?.length > 0) {
-      for (const variant of variants) {
-        await this.createProduct(variant);
+      variants.forEach(
+        (variant) => (variant.parentId = parentProduct.product.id),
+      );
+
+      try {
+        const variantResponses = await Promise.all(
+          variants.map((variant) => this.createProduct(variant)),
+        );
+        variantProducts = variantResponses.map((response) => ({
+          product: {
+            ...response.product,
+            attributes: response.attributes ?? [],
+            images: response.images ?? [],
+          },
+        }));
+      } catch (error) {
+        console.error('Error creating variant products:', error);
+        throw new Error('Failed to create all variant products');
       }
     }
-    return { message: 'Product successfully created' };
+    return {
+      product: {
+        ...parentProduct.product,
+        attributes: parentProduct.attributes ?? [],
+        images: parentProduct.images ?? [],
+      },
+      variants: variantProducts,
+    };
   }
 
   private async createProduct(
     createProductDto: Partial<CreateProductDto>,
-  ): Promise<string> {
+  ): Promise<ProductServiceResponse> {
     const {
-      categoryIdOrName,
+      categoryName,
       attributes,
       isFeatured,
       name,
@@ -62,6 +86,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       stockQuantity,
       isVariant,
       parentId,
+      images,
     } = createProductDto;
 
     const [product] = await this.drizzleService.db
@@ -77,12 +102,21 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         isVariant: parentId ? true : isVariant,
         parentId,
       })
-      .returning({ id: ProductTable.id });
+      .returning();
 
-    if (categoryIdOrName) {
-      this.categoryService.updateOrCreateCategoryWithProducts(
-        categoryIdOrName,
-        { productIdsToLink: [product.id], productIdsToUnlink: [] },
+    if (categoryName) {
+      this.categoryService.updateOrCreateCategoryWithProducts(categoryName, {
+        productIdsToLink: [product.id],
+        productIdsToUnlink: [],
+      });
+    }
+
+    if (images?.length > 0) {
+      await this.drizzleService.db.insert(ProductImageTable).values(
+        images.map((image) => ({
+          productId: product.id,
+          url: image.url,
+        })),
       );
     }
 
@@ -95,10 +129,10 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         })),
       );
     }
-    return product.id;
+    return { product, attributes, images };
   }
 
-  async findOne(productId: string) {
+  async findOne(productId: string): Promise<ProductResponseDto> {
     const [parentProduct] = await this.findOneProduct(productId);
 
     if (!parentProduct) {
@@ -123,12 +157,17 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return structuredResponse;
   }
 
-  private async findOneProduct(productId: string, isVariant: boolean = false) {
+  private async findOneProduct(
+    productId: string,
+    isVariant: boolean = false,
+  ): Promise<ProductServiceResponse[]> {
     const product = await this.drizzleService.db
       .select({
-        product: ProductTable,
-        images: this.getAggregatedImages(),
-        attributes: this.getAggregatedAttributes(),
+        product: ProductTable as unknown as SQL.Aliased<IProduct>,
+        images: this.getAggregatedImages() as SQL.Aliased<IProductImages[]>,
+        attributes: this.getAggregatedAttributes() as SQL.Aliased<
+          IProductAttributes[]
+        >,
       })
       .from(ProductTable)
       .leftJoin(
@@ -146,28 +185,49 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return product;
   }
 
-  async findAll(getProductsDto: GetProductsDto): Promise<PaginatedResult<any>> {
-    const { variants } = getProductsDto;
-
+  async findAll(
+    getProductsDto: GetProductsDto,
+  ): Promise<PaginatedResults<FindAllProductsReturnDto>> {
     let query = this.drizzleService.db
       .select({
         product: ProductTable,
-        ...(variants?.length > 0 && {
-          attributes: this.getAggregatedAttributes(),
-        }),
+        attributes: this.getAggregatedAttributes(),
+        images: this.getAggregatedImages(),
       })
       .from(ProductTable)
+      .leftJoin(
+        ProductImageTable,
+        eq(ProductImageTable.productId, ProductTable.id),
+      )
+      .leftJoin(
+        ProductVariantTable,
+        eq(ProductVariantTable.productId, ProductTable.id),
+      )
+      .groupBy(ProductTable.id)
       .$dynamic();
 
-    if (variants?.length > 0) {
-      query = query.groupBy(ProductTable.id);
-    }
+    const paginatedResults = await this.getPaginatedResult(
+      getProductsDto,
+      query,
+    );
 
-    return await this.getPaginatedResult(getProductsDto, query);
+    const structuredData: FindAllProductsReturnDto[] =
+      paginatedResults.data.map((row) => ({
+        product: {
+          ...row.product,
+          attributes: row.attributes ?? [],
+          images: row.images ?? [],
+        },
+      }));
+
+    return {
+      data: structuredData,
+      pagination: paginatedResults.pagination,
+    };
   }
 
   protected async applyFilters(query: any, filters: GetProductsDto) {
-    const { categorySlug, minPrice, maxPrice, variants } = filters;
+    const { categorySlug, minPrice, maxPrice, attributes } = filters;
 
     if (categorySlug) {
       const categoryId = await this.resolveCategoryId(categorySlug);
@@ -186,12 +246,12 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       query = query.where(lte(ProductTable.price, maxPrice));
     }
 
-    if (variants?.length > 0) {
+    if (attributes?.length > 0) {
       query = query.innerJoin(
         ProductVariantTable,
         eq(ProductVariantTable.productId, ProductTable.id),
       );
-      variants.forEach(({ type, value }) => {
+      attributes.forEach(({ type, value }) => {
         query = query.where(
           and(
             eq(ProductVariantTable.variantType, type),
@@ -216,14 +276,17 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     return category.id;
   }
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+  ): Promise<IProduct> {
     const {
       description,
       isFeatured,
       name,
       price,
       stockQuantity,
-      categoryIdOrName,
+      categoryName,
       productIdsToUnlink,
       productIdsToLink,
     } = updateProductDto;
@@ -237,11 +300,11 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       throw Error('Product not found.');
     }
 
-    if (categoryIdOrName) {
-      this.categoryService.updateOrCreateCategoryWithProducts(
-        categoryIdOrName,
-        { productIdsToLink, productIdsToUnlink },
-      );
+    if (categoryName) {
+      this.categoryService.updateOrCreateCategoryWithProducts(categoryName, {
+        productIdsToLink,
+        productIdsToUnlink,
+      });
     }
 
     const [updatedCategory] = await this.drizzleService.db

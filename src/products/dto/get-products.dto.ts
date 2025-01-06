@@ -7,7 +7,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class Variant {
+class AttributeDto {
   @IsString()
   type: string;
 
@@ -33,8 +33,8 @@ export class GetProductsDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => Variant)
-  variants?: Variant[];
+  @Type(() => AttributeDto)
+  attributes?: AttributeDto[];
 
   @IsOptional()
   @Type(() => Number)

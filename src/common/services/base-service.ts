@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { PgSelect, PgTable, TableConfig } from 'drizzle-orm/pg-core';
+import { PaginatedResults } from '../interfaces';
 
 @Injectable()
 export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
@@ -26,7 +27,7 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   protected abstract delete(id: string): any;
 
-  async getPaginatedResult(filters: any, baseQuery?: PgSelect) {
+  async getPaginatedResult(filters: any, baseQuery?: PgSelect) : Promise<PaginatedResults<any>> {
     const { page, pageSize } = filters || {};
     const offset = (page - 1) * pageSize;
 
