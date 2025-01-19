@@ -14,13 +14,10 @@ export interface IProduct {
 }
 
 export interface IProductImages {
-  id?: string;
-  productId?: string;
   url: string;
 }
 
 export interface IProductAttributes {
-  id?: string;
   variantType: string;
   value: string;
 }

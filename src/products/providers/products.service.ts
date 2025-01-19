@@ -1,18 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
-import { DrizzleService } from 'src/database/drizzle.service';
+import { GetProductsDto } from '../dto/get-products.dto';
 import { ProductTable } from 'src/database/schemas';
+import {
+  CategoryTable,
+  ProductCategoryTable,
+} from 'src/database/schemas/categories.schema';
 import {
   ProductImageTable,
   ProductVariantTable,
 } from 'src/database/schemas/products.schema';
-import { and, eq, gte, inArray, lte, SQL, sql } from 'drizzle-orm';
-import { CategoriesService } from 'src/categories/categories.service';
-import { GetProductsDto } from '../dto/get-products.dto';
-import { ProductCategoryTable } from 'src/database/schemas/categories.schema';
-import { AbstractCrudService } from 'src/common/services/base-service';
+import { and, eq, gte, inArray, lte, SQL } from 'drizzle-orm';
 import slugify from 'slugify';
+import { CategoriesService } from 'src/categories/categories.service';
+import { DrizzleService } from 'src/database/drizzle.service';
+import { AbstractCrudService } from 'src/common/services/base-service';
 import {
   FindAllProductsReturnDto,
   IProduct,
@@ -164,8 +167,10 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     const product = await this.drizzleService.db
       .select({
         product: ProductTable as unknown as SQL.Aliased<IProduct>,
-        images: this.getAggregatedImages() as SQL.Aliased<IProductImages[]>,
-        attributes: this.getAggregatedAttributes() as SQL.Aliased<
+        images: this.getImageSelect() as unknown as SQL.Aliased<
+          IProductImages[]
+        >,
+        attributes: this.getAttributeSelect() as unknown as SQL.Aliased<
           IProductAttributes[]
         >,
       })
@@ -191,20 +196,22 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     let query = this.drizzleService.db
       .select({
         product: ProductTable,
-        attributes: this.getAggregatedAttributes(),
-        images: this.getAggregatedImages(),
+        attributes: this.getAttributeSelect(),
+        images: this.getImageSelect(),
+        category: this.getCategorySelect(),
       })
       .from(ProductTable)
-      .leftJoin(
-        ProductImageTable,
-        eq(ProductImageTable.productId, ProductTable.id),
+      .groupBy(
+        ProductTable.id,
+        ProductCategoryTable.productId,
+        ProductCategoryTable.categoryId,
+        CategoryTable.id,
+        ProductVariantTable.id,
+        ProductImageTable.id,
       )
-      .leftJoin(
-        ProductVariantTable,
-        eq(ProductVariantTable.productId, ProductTable.id),
-      )
-      .groupBy(ProductTable.id)
       .$dynamic();
+
+    query = this.applyPaginateJoins(query);
 
     const paginatedResults = await this.getPaginatedResult(
       getProductsDto,
@@ -217,6 +224,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
           ...row.product,
           attributes: row.attributes ?? [],
           images: row.images ?? [],
+          category: row.category ?? [],
         },
       }));
 
@@ -229,14 +237,8 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   protected async applyFilters(query: any, filters: GetProductsDto) {
     const { categorySlug, minPrice, maxPrice, attributes } = filters;
 
-    if (categorySlug) {
-      const categoryId = await this.resolveCategoryId(categorySlug);
-      query = query
-        .innerJoin(
-          ProductCategoryTable,
-          eq(ProductTable.id, ProductCategoryTable.productId),
-        )
-        .where(eq(ProductCategoryTable.categoryId, categoryId));
+    if (categorySlug?.length > 0) {
+      query = query.where(eq(CategoryTable.slug, categorySlug));
     }
 
     if (minPrice) {
@@ -247,10 +249,6 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     }
 
     if (attributes?.length > 0) {
-      query = query.innerJoin(
-        ProductVariantTable,
-        eq(ProductVariantTable.productId, ProductTable.id),
-      );
       attributes.forEach(({ type, value }) => {
         query = query.where(
           and(
@@ -259,23 +257,33 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
           ),
         );
       });
-      query = query.groupBy(ProductTable.id);
     }
 
     return query;
   }
 
-  private async resolveCategoryId(slug: string): Promise<string | null> {
-    const category = await this.drizzleService.db.query.categories.findFirst({
-      where: (categories, { eq }) => eq(categories.slug, slug),
-    });
+  protected applyPaginateJoins(query: any) {
+    query = query
+      .leftJoin(
+        ProductImageTable,
+        eq(ProductImageTable.productId, ProductTable.id),
+      )
+      .leftJoin(
+        ProductVariantTable,
+        eq(ProductVariantTable.productId, ProductTable.id),
+      )
+      .leftJoin(
+        ProductCategoryTable,
+        eq(ProductCategoryTable.productId, ProductTable.id),
+      )
+      .leftJoin(
+        CategoryTable,
+        eq(ProductCategoryTable.categoryId, CategoryTable.id),
+      );
 
-    if (!category) {
-      throw new Error(`Category with slug '${slug}' not found.`);
-    }
-
-    return category.id;
+    return query;
   }
+
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
@@ -346,15 +354,24 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return `This action removed${id} product and its variants`;
   }
 
-  private getAggregatedImages() {
-    return sql`array_agg(
-      jsonb_build_object('id', ${ProductImageTable.id}, 'url', ${ProductImageTable.url})
-      ) FILTER (WHERE ${ProductImageTable.id} IS NOT NULL)`.as('images');
-  }
+  // private getAggregatedImages() {
+  //   return sql`array_agg(
+  //     jsonb_build_object('id', ${ProductImageTable.id}, 'url', ${ProductImageTable.url})
+  //     ) FILTER (WHERE ${ProductImageTable.id} IS NOT NULL)`.as('images');
+  // }
 
-  private getAggregatedAttributes() {
-    return sql`array_agg(
-      jsonb_build_object('id', ${ProductVariantTable.id}, 'variantType', ${ProductVariantTable.variantType}, 'value', ${ProductVariantTable.value})
-      ) FILTER (WHERE ${ProductVariantTable.id} IS NOT NULL)`.as('attributes');
-  }
+  private getImageSelect = () => ({
+    url: ProductImageTable.url,
+  });
+
+  private getCategorySelect = () => ({
+    name: CategoryTable.name,
+    imageUrl: CategoryTable.imageUrl,
+    slug: CategoryTable.slug,
+  });
+
+  private getAttributeSelect = () => ({
+    variantType: ProductVariantTable.variantType,
+    value: ProductVariantTable.value,
+  });
 }

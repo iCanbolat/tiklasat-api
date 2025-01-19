@@ -6,27 +6,34 @@ import {
   CategoryTable,
   ProductCategoryTable,
 } from 'src/database/schemas/categories.schema';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, SQL, sql } from 'drizzle-orm';
 import { ProductTable } from 'src/database/schemas';
 import { UpdateCategoryProductsDto } from './dto/update-category-products.dto';
-import { validate as isUUID } from 'uuid';
 import slugify from 'slugify';
+import { ProductImageTable } from 'src/database/schemas/products.schema';
+import { FindOneCategoryResponseDto, ICategory, ICategoryTree, IProduct } from './interfaces';
 
 @Injectable()
 export class CategoriesService {
   constructor(private readonly drizzleService: DrizzleService) {}
 
-  async create(createCategoryDto: CreateCategoryDto) {
-    const { name, slug, imageUrl } = createCategoryDto;
+  async create(createCategoryDto: CreateCategoryDto): Promise<ICategory> {
+    const { name, imageUrl, parentId } = createCategoryDto;
+
+    if (parentId) {
+      await this.ensureCategoryExists(parentId);
+    }
 
     const [newCategory] = await this.drizzleService.db
       .insert(CategoryTable)
       .values({
         name,
-        slug,
+        slug: slugify(name, { lower: true }),
         imageUrl,
+        parentId,
       })
       .returning();
+
     return newCategory;
   }
 
@@ -34,37 +41,15 @@ export class CategoriesService {
     categoryName: string,
     { productIdsToLink, productIdsToUnlink }: UpdateCategoryProductsDto,
   ) {
-    let category: { id: string };
+    const category = await this.findOrCreateCategory(categoryName);
 
-    const categoryExists =
-      await this.drizzleService.db.query.categories.findFirst({
-        where: (categories, { eq }) =>
-          eq(categories.slug, slugify(categoryName, { lower: true })),
-      });
-
-    if (categoryExists) {
-      category = categoryExists;
-    } else {
-      category = await this.create({
-        name: categoryName,
-        slug: slugify(categoryName, { lower: true }),
-        imageUrl: '',
-      });
+    // if there are parent categories, link the products to them as well
+    let categoryIdsToLink = [];
+    if (category.parentId) {
+      categoryIdsToLink = (
+        await this.getParentCategories(category.parentId)
+      ).map((category) => category.id);
     }
-
-    // if (!isUUID(categoryIdOrName)) {
-    //   category = await this.create({
-    //     name: categoryIdOrName,
-    //     slug: slugify(categoryIdOrName, { lower: true }),
-    //     imageUrl: '',
-    //   });
-    // } else {
-    //   category = await this.getCategory(categoryIdOrName);
-    // }
-
-    // if (!category) {
-    //   throw new Error('Category not found');
-    // }
 
     if (productIdsToLink && productIdsToLink.length > 0) {
       const links = productIdsToLink.map((productId) => ({
@@ -75,6 +60,12 @@ export class CategoriesService {
         .insert(ProductCategoryTable)
         .values(links)
         .onConflictDoNothing();
+
+      if (categoryIdsToLink.length > 0) {
+        productIdsToLink.forEach(async (productId) => {
+          await this.linkProductToParentCategory(productId, categoryIdsToLink);
+        });
+      }
     }
 
     if (productIdsToUnlink && productIdsToUnlink.length > 0) {
@@ -86,6 +77,14 @@ export class CategoriesService {
             inArray(ProductCategoryTable.productId, productIdsToUnlink),
           ),
         );
+      if (categoryIdsToLink.length > 0) {
+        productIdsToUnlink.forEach(async (productId) => {
+          await this.unLinkProductToParentCategory(
+            productId,
+            categoryIdsToLink,
+          );
+        });
+      }
     }
 
     return {
@@ -96,24 +95,52 @@ export class CategoriesService {
     };
   }
 
-  async getAllCategories() {
-    return await this.drizzleService.db.query.categories.findMany({
-      with: { products: { with: { product: true } } },
+  async getAllCategories(): Promise<ICategoryTree[]> {
+    const categories = await this.drizzleService.db.query.categories.findMany({
+      orderBy: (categories, { desc }) => [desc(categories.createdAt)],
     });
+    return this.buildCategoryTree(categories);
   }
 
-  async getCategory(categoryId: string) {
-    const categoryWithProducts =
-      await this.drizzleService.db.query.categories.findFirst({
-        where: (categories, { eq }) => eq(categories.id, categoryId),
-        with: { products: { with: { product: true } } },
-      });
+  async getCategory(categoryId: string) : Promise<FindOneCategoryResponseDto> {
+    const [category] = await this.drizzleService.db
+      .select({
+        category: CategoryTable,
+        products: this.getAggregatedProducts() as SQL.Aliased<IProduct[]>,
+      })
+      .from(CategoryTable)
+      .leftJoin(
+        ProductCategoryTable,
+        eq(CategoryTable.id, ProductCategoryTable.categoryId),
+      )
+      .leftJoin(
+        ProductTable,
+        eq(ProductTable.id, ProductCategoryTable.productId),
+      )
+      .leftJoin(
+        ProductImageTable,
+        eq(ProductTable.id, ProductImageTable.productId),
+      )
+      .where(eq(CategoryTable.id, categoryId))
+      .groupBy(CategoryTable.id)
+      .execute();
 
-    if (!categoryWithProducts) {
-      throw new Error('Category not found');
+    if (!category) {
+      throw new Error(`Category with ID ${categoryId} not found.`);
     }
 
-    return categoryWithProducts;
+    const parentCategories = await this.getParentCategories(
+      category.category.parentId,
+    );
+
+    const subCategories = await this.getSubcategories(categoryId);
+
+    return {
+      category: category.category,
+      products: category.products,
+      parentCategories,
+      subCategories,
+    };
   }
 
   async removeCategory(categoryId: string, shouldDeleteProducts: boolean) {
@@ -131,7 +158,7 @@ export class CategoriesService {
     }
 
     const productIds = categoryWithProducts.products.map(
-      (link) => link.product.id,
+      (link) => link.id,
     );
 
     await this.drizzleService.db
@@ -148,21 +175,138 @@ export class CategoriesService {
     };
   }
 
-  async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto) {
-    const { imageUrl, name, slug } = updateCategoryDto;
+  async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto): Promise<ICategory> {
+    const { imageUrl, name, parentId } = updateCategoryDto;
 
-    const categoryWithProducts = await this.getCategory(id);
+    await this.ensureCategoryExists(id);
 
-    if (!categoryWithProducts) {
-      throw new Error('Category not found');
+    // Ensure the new parentId exists if provided
+    if (parentId) {
+      await this.ensureCategoryExists(parentId);
     }
 
     const [updatedCategory] = await this.drizzleService.db
       .update(CategoryTable)
-      .set({ imageUrl, name, slug })
+      .set({
+        imageUrl,
+        name,
+        slug: slugify(name, { lower: true }),
+        parentId: parentId || null,
+      })
       .where(eq(CategoryTable.id, id))
       .returning();
 
     return updatedCategory;
+  }
+
+  private async ensureCategoryExists(categoryId: string) {
+    const exists = await this.drizzleService.db.query.categories.findFirst({
+      where: (categories, { eq }) => eq(categories.id, categoryId),
+    });
+
+    if (!exists) {
+      throw new Error(`Category with ID ${categoryId} not found.`);
+    }
+  }
+
+  private buildCategoryTree(categories: any[], parentId: string | null = null) {
+    return categories
+      .filter((category) => category.parentId === parentId)
+      .map((category) => ({
+        ...category,
+        subcategories: this.buildCategoryTree(categories, category.id),
+      }));
+  }
+
+  private async findOrCreateCategory(categoryName: string) {
+    const slug = slugify(categoryName, { lower: true });
+
+    const category = await this.drizzleService.db.query.categories.findFirst({
+      where: (categories, { eq }) => eq(categories.slug, slug),
+    });
+
+    if (category) {
+      return category;
+    }
+
+    return await this.create({
+      name: categoryName,
+      imageUrl: '',
+    });
+  }
+
+  private async getParentCategories(categoryParentId: string) {
+    let categories = [];
+
+    const [query] = await this.drizzleService.db
+      .select()
+      .from(CategoryTable)
+      .where(eq(CategoryTable.id, categoryParentId))
+      .execute();
+
+    categories.push(query);
+
+    if (query.parentId) {
+      this.getParentCategories(query.parentId);
+    }
+
+    return categories;
+  }
+
+  private async getSubcategories(categoryId: string): Promise<any[]> {
+    const subcategories = await this.drizzleService.db.execute(
+      sql`
+       WITH RECURSIVE category_tree AS (
+        -- Base case: Start with immediate subcategories of the given category
+        SELECT * FROM ${CategoryTable}
+        WHERE parent_id = ${categoryId}
+
+        UNION ALL
+
+        -- Recursive case: Fetch subcategories of subcategories
+        SELECT c.*
+        FROM ${CategoryTable} c
+        INNER JOIN category_tree ct ON c.parent_id = ct.id
+      )
+      SELECT * FROM category_tree;
+      `,
+    );
+
+    return subcategories.rows;
+  }
+
+  private async linkProductToParentCategory(
+    productId: string,
+    categoryIdsToLink: string[],
+  ) {
+    const links = categoryIdsToLink.map((categoryId) => ({
+      productId,
+      categoryId,
+    }));
+
+    await this.drizzleService.db
+      .insert(ProductCategoryTable)
+      .values(links)
+      .onConflictDoNothing();
+  }
+
+  private async unLinkProductToParentCategory(
+    productId: string,
+    categoryIdsToUnlink: string[],
+  ) {
+    await this.drizzleService.db
+      .delete(ProductCategoryTable)
+      .where(
+        and(
+          eq(ProductCategoryTable.productId, productId),
+          inArray(ProductCategoryTable.categoryId, categoryIdsToUnlink),
+        ),
+      );
+  }
+
+  private getAggregatedProducts() {
+    return sql`array_agg(
+        jsonb_build_object('id', ${ProductTable.id}, 'name', ${ProductTable.name}, 'imageUrl', ${ProductImageTable.url})
+        ) FILTER (WHERE ${ProductTable.id} IS NOT NULL)`.as('products');
   }
 }

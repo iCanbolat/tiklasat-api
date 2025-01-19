@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { countDistinct, eq, sql } from 'drizzle-orm';
 import { DrizzleService } from 'src/database/drizzle.service';
-import { PgSelect, PgTable, TableConfig } from 'drizzle-orm/pg-core';
+import { PgSelect, PgSelectBase, PgTable, TableConfig } from 'drizzle-orm/pg-core';
 import { PaginatedResults } from '../interfaces';
+import { ProductTable } from 'src/database/schemas';
+import { CategoryTable, ProductCategoryTable } from 'src/database/schemas/categories.schema';
 
 @Injectable()
 export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
@@ -10,7 +12,7 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   constructor(
     drizzleService: DrizzleService,
-    protected readonly table: T,
+    protected readonly table: any,
   ) {
     this.drizzleService = drizzleService;
   }
@@ -20,14 +22,19 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
   protected abstract findOne(id: string): any;
 
   protected abstract create(data: any): any;
-
+  
+  protected abstract update(id: string, data: any): any;
+  
+  protected abstract delete(id: string): any;
+  
   protected abstract applyFilters?<F>(query: any, filters: F): any;
 
-  protected abstract update(id: string, data: any): any;
+  protected abstract applyPaginateJoins?(query: PgSelectBase<any, any, any>): any;
 
-  protected abstract delete(id: string): any;
-
-  async getPaginatedResult(filters: any, baseQuery?: PgSelect) : Promise<PaginatedResults<any>> {
+  async getPaginatedResult(
+    filters: any,
+    baseQuery?: PgSelect,
+  ): Promise<PaginatedResults<any>> {
     const { page, pageSize } = filters || {};
     const offset = (page - 1) * pageSize;
 
@@ -64,13 +71,16 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
   }
 
   private async getTotalRecords<F>(filters: F): Promise<number> {
-    const countQuery = this.drizzleService.db
-      .select({ count: sql<number>`COUNT(*)` })
+    let countQuery = this.drizzleService.db
+      .select({ count: countDistinct(this.table.id) })
       .from(this.table);
+
+    countQuery = this.applyPaginateJoins(countQuery)
 
     const query = this.applyFilters(countQuery, filters);
 
     const [{ count } = { count: 0 }] = await query;
+    
     return Number(count);
   }
 }

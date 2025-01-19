@@ -9,7 +9,7 @@ export class CreateCategoryDto {
   @IsString()
   imageUrl?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  slug: string;
+  parentId?: string;
 }
