@@ -9,23 +9,23 @@ export class OrdersService {
   constructor(private drizzleService: DrizzleService) {}
   
   async create(createOrderDto: CreateOrderDto) {
-    const { items, guestUser, status, userId } = createOrderDto;
+    // const { items, guestUser, status, userId } = createOrderDto;
 
-    const [order] = await this.drizzleService.db
-      .insert(OrderTable)
-      .values({
-        userId,
-        guestUser,
-        status,
-      })
-      .returning();
+    // const [order] = await this.drizzleService.db
+    //   .insert(OrderTable)
+    //   .values({
+    //     userId,
+    //     guestUser,
+    //     status,
+    //   })
+    //   .returning();
 
-    const orderItems = items.map((item) => ({
-      ...item,
-      orderId: order.id,
-    }));
+    // const orderItems = items.map((item) => ({
+    //   ...item,
+    //   orderId: order.id,
+    // }));
 
-    await this.drizzleService.db.insert(OrderItemTable).values(orderItems);
+    // await this.drizzleService.db.insert(OrderItemTable).values(orderItems);
 
     return 'This action adds a new order';
   }

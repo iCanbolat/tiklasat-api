@@ -7,6 +7,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatusEnum, OrderStatusType } from 'src/database/schemas/orders.schema';
+// import { BasketItemDto, BuyerDto } from 'src/payments/dto/base-payment.dto';
 
 export class GuestUserDto {
   @IsString()
@@ -27,18 +28,18 @@ export class CreateOrderDto {
   @IsOptional()
   userId?: string;
 
-  @ValidateNested()
-  @Type(() => GuestUserDto)
-  @IsOptional()
-  guestUser?: GuestUserDto;
+  // @ValidateNested()
+  // @Type(() => BuyerDto)
+  // @IsOptional()
+  // guestUser?: BuyerDto;
 
   @IsEnum(OrderStatusEnum.enumValues)
   @IsOptional()
   status?: OrderStatusType;
 
-  @ValidateNested({ each: true })
-  @Type(() => OrderItemDto)
-  items: OrderItemDto[];
+  // @ValidateNested({ each: true })
+  // @Type(() => BasketItemDto)
+  // items: BasketItemDto[];
 }
 
 export class OrderItemDto {

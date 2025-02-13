@@ -6,6 +6,8 @@ import { DatabaseModule } from './database/database.module';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
+import paymentConfig from './payments/config/payment.config';
 
 @Module({
   imports: [
@@ -19,7 +21,11 @@ import { OrdersModule } from './orders/orders.module';
         POSTGRES_DB: Joi.string().required(),
         JWT_SECRET: Joi.string().required(),
         JWT_TOKEN_TTL: Joi.string().required(),
+        IYZICO_API_KEY: Joi.string().required(),
+        IYZICO_SECRET_KEY: Joi.string().required(),
+        IYZICO_BASE_URL: Joi.string().required(),
       }),
+      load:[paymentConfig]
     }),
     DatabaseModule.forRootAsync({
       inject: [ConfigService],
@@ -35,6 +41,7 @@ import { OrdersModule } from './orders/orders.module';
     ProductsModule,
     CategoriesModule,
     OrdersModule,
+    PaymentsModule,
   ],
   controllers: [],
   providers: [],
