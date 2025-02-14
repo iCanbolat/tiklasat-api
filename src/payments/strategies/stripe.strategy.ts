@@ -4,14 +4,17 @@ import { PaymentStrategy } from "../interfaces/payment-strategy.interface";
 
 @Injectable()
 export class StripePaymentStrategy implements PaymentStrategy {
+  getThreeDSPaymentResult(token: string): Promise<any> {
+    throw new Error("Method not implemented.");
+  }
   handleWebhook(data: any): Promise<any> {
     throw new Error("Method not implemented.");
   }
-  createThreeDsPayment(createThreeDsPaymentDto: any): Promise<any> {
+  createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any> {
     return Promise.resolve('This action adds a new payment');
   }
 
-  initCheckoutForm(checkoutInitDto: any): any {
+  createCheckoutFormSession(checkoutInitDto: any): any {
     return 'This action adds a new payment';
   }
   getCheckoutFormPaymentResult(token: string): Promise<any> {

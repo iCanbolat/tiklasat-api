@@ -1,18 +1,17 @@
 import {
   PipeTransform,
   Injectable,
-  ArgumentMetadata,
   BadRequestException,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
-import { StripeInitCheckoutDto } from '../dto/stripe/stripe-init-checkout.dto';
-import { IyzicoInitCheckoutDto } from '../dto/iyzico/iyzico-init-checkout.dto';
 import { PaymentProvider } from '../payments.enum';
+import { IyzicoThreeDSPaymentDto } from '../dto/iyzico/iyzico-threeds-payment.dto';
+import { StripeThreeDsPaymentDto } from '../dto/stripe/stripe-threeds.payment.dto';
 
 @Injectable()
-export class ProviderValidationPipe implements PipeTransform {
+export class ThreeDSValidationPipe implements PipeTransform {
   async transform(value: any) {
     if (!value.provider) {
       throw new BadRequestException('Provider is required');
@@ -21,10 +20,10 @@ export class ProviderValidationPipe implements PipeTransform {
     let dtoClass;
     switch (value.provider) {
       case PaymentProvider.IYZICO:
-        dtoClass = IyzicoInitCheckoutDto;
+        dtoClass = IyzicoThreeDSPaymentDto;
         break;
       case PaymentProvider.STRIPE:
-        dtoClass = StripeInitCheckoutDto;
+        dtoClass = StripeThreeDsPaymentDto;
         break;
 
       default:

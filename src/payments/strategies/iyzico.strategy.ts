@@ -59,11 +59,18 @@ export class IyzicoPaymentStrategy implements PaymentStrategy {
     return receivedSignature === computedHash;
   }
 
-  createThreeDsPayment(paymentData: any): Promise<any> {
-    return new Promise((resolve, reject) => {});
+  createThreeDsPaymentSession(
+    paymentData: Iyzipay.ThreeDSInitializePaymentRequestData,
+  ): Promise<Iyzipay.ThreeDSInitializePaymentResult> {
+    return new Promise((resolve, reject) => {
+      this.iyzipay.threedsInitialize.create(paymentData, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
   }
 
-  async initCheckoutForm(
+  async createCheckoutFormSession(
     checkoutInitDto: Iyzipay.ThreeDSInitializePaymentRequestData,
   ): Promise<Iyzipay.CheckoutFormInitialResult> {
     try {
@@ -86,6 +93,17 @@ export class IyzicoPaymentStrategy implements PaymentStrategy {
   ): Promise<Iyzipay.CheckoutFormRetrieveResult> {
     return new Promise((resolve, reject) => {
       this.iyzipay.checkoutForm.retrieve({ token }, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+  }
+
+  async getThreeDSPaymentResult(
+    paymentId: string,
+  ): Promise<Iyzipay.PaymentResult> {
+    return new Promise((resolve, reject) => {
+      this.iyzipay.threedsPayment.create({ paymentId }, (err, result) => {
         if (err) reject(err);
         else resolve(result);
       });

@@ -25,20 +25,20 @@ export class PaymentsService {
         throw new BadRequestException('Invalid payment provider');
     }
   }
-  async initCheckoutForm(
+  async createCheckoutFormSession(
     provider: string,
     checkoutInitDto: any,
   ): Promise<{ token: string; paymentUrl: string }> {
     const strategy = this.getPaymentProvider(provider);
-    return await strategy.initCheckoutForm(checkoutInitDto);
+    return await strategy.getCheckoutFormPaymentResult(checkoutInitDto);
   }
 
-  async createThreeDsPayment(
+  async createThreeDsPaymentSession(
     provider: PaymentProvider,
     paymentData: any,
   ): Promise<any> {
     const strategy = this.getPaymentProvider(provider);
-    return strategy.createThreeDsPayment(paymentData);
+    return strategy.createThreeDsPaymentSession(paymentData);
   }
 
   async getCheckoutFormPaymentResult(
@@ -47,6 +47,14 @@ export class PaymentsService {
   ): Promise<any> {
     const strategy = this.getPaymentProvider(provider);
     return strategy.getCheckoutFormPaymentResult(token);
+  }
+
+  async getThreeDSPaymentResult(
+    provider: PaymentProvider,
+    paymentId: string,
+  ): Promise<any> {
+    const strategy = this.getPaymentProvider(provider);
+    return strategy.getThreeDSPaymentResult(paymentId);
   }
 
   async handleWebhook(provider: PaymentProvider, data: any) {

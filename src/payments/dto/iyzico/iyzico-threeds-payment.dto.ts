@@ -25,11 +25,13 @@ class PaymentCardDto {
   @IsString()
   cvc: string;
 
+  @IsOptional()
   @IsString()
-  cardAlias: string;
+  cardAlias?: string;
 
+  @IsOptional()
   @IsString()
-  registerCard: number;
+  registerCard?: number;
 }
 
 class SavedPaymentCard {
@@ -49,7 +51,7 @@ class SavedPaymentCard {
   consumerToken: string;
 }
 
-export class CreateThreeDsPaymentDto extends BasePaymentDto {
+export class IyzicoThreeDSPaymentDto extends BasePaymentDto {
   @ValidateNested()
   @Type(() => PaymentCardDto || SavedPaymentCard)
   paymentCard: PaymentCardDto | SavedPaymentCard;
@@ -58,7 +60,7 @@ export class CreateThreeDsPaymentDto extends BasePaymentDto {
   paymentChannel: keyof typeof Iyzipay.PAYMENT_CHANNEL;
 
   @IsNumber()
-  installments: number;
+  installment: number;
 
   @IsString()
   callbackUrl: string;
