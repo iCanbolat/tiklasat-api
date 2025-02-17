@@ -30,6 +30,12 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
         configService.get('payment.iyzico'),
       inject: [ConfigService],
     },
+    {
+      provide: 'StripeConfig',
+      useFactory: (configService: ConfigService) =>
+        configService.get('payment.stripe'),
+      inject: [ConfigService],
+    },
     PaymentsService,
     StripePaymentStrategy,
     IyzicoPaymentStrategy,

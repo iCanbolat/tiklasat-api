@@ -28,9 +28,9 @@ export class PaymentsService {
   async createCheckoutFormSession(
     provider: string,
     checkoutInitDto: any,
-  ): Promise<{ token: string; paymentUrl: string }> {
+  ): Promise<{ token?: string; paymentUrl: string }> {
     const strategy = this.getPaymentProvider(provider);
-    return await strategy.getCheckoutFormPaymentResult(checkoutInitDto);
+    return await strategy.createCheckoutFormSession(checkoutInitDto);
   }
 
   async createThreeDsPaymentSession(

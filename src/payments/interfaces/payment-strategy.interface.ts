@@ -3,7 +3,9 @@
 export interface PaymentStrategy {
   createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any>;
 
-  createCheckoutFormSession(checkoutInitDto: any): Promise<any>;
+  createCheckoutFormSession(
+    checkoutInitDto: any,
+  ): Promise<{ paymentUrl: string; token?: string }>;
 
   getCheckoutFormPaymentResult(token: string): Promise<any>;
 

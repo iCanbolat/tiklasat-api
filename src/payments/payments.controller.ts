@@ -34,11 +34,9 @@ export class PaymentsController {
   @UsePipes(ProviderValidationPipe)
   initCheckoutForm(
     @Body() checkoutInitDto: any,
-  ): Promise<{ token: string; paymentUrl: string }> {
-    return this.paymentsService.createCheckoutFormSession(
-      checkoutInitDto.provider,
-      checkoutInitDto,
-    );
+  ): Promise<{ token?: string; paymentUrl: string }> {
+    const { provider, ...rest } = checkoutInitDto;
+    return this.paymentsService.createCheckoutFormSession(provider, rest);
   }
 
   @Public()
@@ -57,10 +55,7 @@ export class PaymentsController {
     @Body('paymentId') paymentId: string,
     @Body('provider') provider: PaymentProvider,
   ) {
-    return this.paymentsService.getThreeDSPaymentResult(
-      provider,
-      paymentId,
-    );
+    return this.paymentsService.getThreeDSPaymentResult(provider, paymentId);
   }
 
   @Public()

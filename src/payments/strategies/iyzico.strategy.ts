@@ -72,14 +72,19 @@ export class IyzicoPaymentStrategy implements PaymentStrategy {
 
   async createCheckoutFormSession(
     checkoutInitDto: Iyzipay.ThreeDSInitializePaymentRequestData,
-  ): Promise<Iyzipay.CheckoutFormInitialResult> {
+  ): Promise<{ token: string; paymentUrl: string }> {
     try {
       return new Promise((resolve, reject) => {
         this.iyzipay.checkoutFormInitialize.create(
           checkoutInitDto,
           (err, result) => {
             if (err) reject(err);
-            else resolve(result);
+            else {
+              resolve({
+                token: result.token,
+                paymentUrl: result.paymentPageUrl,
+              });
+            }
           },
         );
       });
