@@ -20,7 +20,7 @@ export class IyzicoPaymentStrategy implements PaymentStrategy {
     });
   }
 
-  async handleWebhook(data: any): Promise<any> {
+  async handleWebhook(data: any,headers:any): Promise<any> {
     try {
       console.log('Webhook data received:', data);
 

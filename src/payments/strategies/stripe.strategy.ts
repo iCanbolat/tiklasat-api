@@ -16,8 +16,30 @@ export class StripePaymentStrategy implements PaymentStrategy {
   getThreeDSPaymentResult(token: string): Promise<any> {
     throw new Error('Method not implemented.');
   }
-  handleWebhook(data: any): Promise<any> {
-    throw new Error('Method not implemented.');
+  handleWebhook(data: any, headers: Headers): any {
+    const signature = headers['stripe-signature'];
+    const body = JSON.stringify(data);
+
+    let event;
+    try {
+      event = this.stripe.webhooks.constructEvent(
+        body,
+        signature,
+        this.stripeConfig.webhookSecret,
+      );
+    } catch (error) {
+      console.log('Error verifying webhook signature:', error);
+
+      return { status: 'error' };
+    }
+
+    switch (event.type) {
+      case 'checkout.session.completed':
+        break;
+
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
   }
   createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any> {
     return Promise.resolve('This action adds a new payment');

@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UsePipes,
+  Headers,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 // import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -63,7 +64,10 @@ export class PaymentsController {
   handleWebhook(
     @Param('provider') provider: PaymentProvider,
     @Body() data: any,
+    @Headers() headers: any,
   ) {
-    return this.paymentsService.handleWebhook(provider, data);
+    console.log('Headers', headers);
+
+    return this.paymentsService.handleWebhook(provider, data, headers);
   }
 }

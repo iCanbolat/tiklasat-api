@@ -11,5 +11,5 @@ export interface PaymentStrategy {
 
   getThreeDSPaymentResult(token: string): Promise<any>;
 
-  handleWebhook(data: any): Promise<any>;
+  handleWebhook(data: any, headers: Headers): Promise<any>;
 }
