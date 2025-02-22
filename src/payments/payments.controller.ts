@@ -46,10 +46,8 @@ export class PaymentsController {
   @Post('init-threeds')
   @UsePipes(ThreeDSValidationPipe)
   initThreeDS(@Body() checkoutInitDto: any): Promise<any> {
-    return this.paymentsService.createThreeDsPaymentSession(
-      checkoutInitDto.provider,
-      checkoutInitDto,
-    );
+    const { provider, ...rest } = checkoutInitDto;
+    return this.paymentsService.createThreeDsPaymentSession(provider, rest);
   }
 
   @Public()

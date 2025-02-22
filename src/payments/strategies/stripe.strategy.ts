@@ -76,8 +76,23 @@ export class StripePaymentStrategy implements PaymentStrategy {
         console.log(`Unhandled event type ${event.type}`);
     }
   }
-  createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any> {
-    return Promise.resolve('This action adds a new payment');
+
+  async createThreeDsPaymentSession(
+    createThreeDsPaymentDto: any,
+  ): Promise<any> {
+    const paymentIntent = await this.stripe.paymentIntents.create({
+      amount: createThreeDsPaymentDto.amount,
+      currency: createThreeDsPaymentDto.currency,
+      payment_method_types: ['card'],
+      confirm: true,
+      use_stripe_sdk: true,
+      payment_method_options: {
+        card: {
+          request_three_d_secure: 'automatic',
+        },
+      },
+    });
+    return paymentIntent.client_secret;
   }
 
   async createCheckoutFormSession(

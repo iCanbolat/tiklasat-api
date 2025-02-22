@@ -1,12 +1,12 @@
-import { IsString } from 'class-validator';
+import { IsNumber, IsString } from 'class-validator';
 
 export class StripeThreeDsPaymentDto {
-  @IsString()
-  paymentIntentId: string;
+  @IsNumber()
+  amount: number;
 
   @IsString()
-  paymentMethodId: string;
+  currency: string;
 
-  @IsString()
-  returnUrl: string;
+  // @IsString()
+  // returnUrl: string;
 }
