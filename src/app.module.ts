@@ -7,6 +7,7 @@ import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { MailModule } from './mail/mail.module';
 import paymentConfig from './payments/config/payment.config';
 
 @Module({
@@ -25,7 +26,7 @@ import paymentConfig from './payments/config/payment.config';
         IYZICO_SECRET_KEY: Joi.string().required(),
         IYZICO_BASE_URL: Joi.string().required(),
       }),
-      load:[paymentConfig]
+      load: [paymentConfig],
     }),
     DatabaseModule.forRootAsync({
       inject: [ConfigService],
@@ -42,6 +43,7 @@ import paymentConfig from './payments/config/payment.config';
     CategoriesModule,
     OrdersModule,
     PaymentsModule,
+    MailModule,
   ],
   controllers: [],
   providers: [],

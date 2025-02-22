@@ -59,6 +59,6 @@ export class PaymentsService {
 
   async handleWebhook(provider: PaymentProvider, data: any, headers: Headers): Promise<any> {
     const strategy = this.getPaymentProvider(provider);
-    return strategy.handleWebhook(data, headers['stripe-signature']);
+    return strategy.handleWebhook(data, headers);
   }
 }

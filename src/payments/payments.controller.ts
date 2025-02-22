@@ -8,6 +8,8 @@ import {
   Delete,
   UsePipes,
   Headers,
+  Req,
+  RawBodyRequest,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 // import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -63,11 +65,9 @@ export class PaymentsController {
   @Post('webhook/:provider')
   handleWebhook(
     @Param('provider') provider: PaymentProvider,
-    @Body() data: any,
+    @Req() req: RawBodyRequest<Request>,
     @Headers() headers: any,
   ) {
-    console.log('Headers', headers);
-
-    return this.paymentsService.handleWebhook(provider, data, headers);
+    return this.paymentsService.handleWebhook(provider, req.rawBody, headers);
   }
 }

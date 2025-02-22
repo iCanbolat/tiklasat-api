@@ -5,12 +5,10 @@ import { IyzicoPaymentStrategy } from './strategies/iyzico.strategy';
 import { StripePaymentStrategy } from './strategies/stripe.strategy';
 import { PaymentsService } from './payments.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
-  imports: [
-    ConfigModule, 
-    EventEmitterModule.forRoot(), 
-  ],
+  imports: [ConfigModule, MailModule, EventEmitterModule.forRoot()],
   controllers: [PaymentsController],
   providers: [
     // {

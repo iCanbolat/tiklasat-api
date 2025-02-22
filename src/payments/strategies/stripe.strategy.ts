@@ -1,13 +1,18 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, RawBodyRequest } from '@nestjs/common';
 import { PaymentStrategy } from '../interfaces/payment-strategy.interface';
 import Stripe from 'stripe';
 import { StripeInitCheckoutDto } from '../dto/stripe/stripe-init-checkout.dto';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class StripePaymentStrategy implements PaymentStrategy {
+  private readonly logger = new Logger(StripePaymentStrategy.name);
   private stripe: Stripe;
 
-  constructor(@Inject('StripeConfig') private readonly stripeConfig) {
+  constructor(
+    @Inject('StripeConfig') private readonly stripeConfig,
+    private readonly mailService: MailService,
+  ) {
     this.stripe = new Stripe(this.stripeConfig.secretKey, {
       apiVersion: '2025-01-27.acacia',
     });
@@ -16,16 +21,21 @@ export class StripePaymentStrategy implements PaymentStrategy {
   getThreeDSPaymentResult(token: string): Promise<any> {
     throw new Error('Method not implemented.');
   }
-  handleWebhook(data: any, headers: Headers): any {
-    const signature = headers['stripe-signature'];
-    const body = JSON.stringify(data);
 
-    let event;
+  async handleWebhook(
+    data: Buffer<ArrayBufferLike>,
+    headers: Headers,
+  ): Promise<any> {
+    const signature = headers['stripe-signature'];
+    const das = await data.toJSON();
+    console.log('data Json', das);
+
+    let event: Stripe.Event;
     try {
       event = this.stripe.webhooks.constructEvent(
-        body,
+        data,
         signature,
-        this.stripeConfig.webhookSecret,
+        'whsec_ff8188bdb0a593efdf9e6992affbc1b071f2440ec65672b458931461e810df12',
       );
     } catch (error) {
       console.log('Error verifying webhook signature:', error);
@@ -35,6 +45,31 @@ export class StripePaymentStrategy implements PaymentStrategy {
 
     switch (event.type) {
       case 'checkout.session.completed':
+        const session = event.data.object as Stripe.Checkout.Session;
+
+        const lineItems = await this.stripe.checkout.sessions.listLineItems(
+          session.id,
+        );
+
+        const items = lineItems.data.map((item) => ({
+          name: item.description,
+          quantity: item.quantity,
+          price: (item.amount_total / 100).toFixed(2),
+        }));
+
+        const receiptData = {
+          email: session.customer_details.email,
+          name: session.customer_details.name,
+          items,
+          total: session.amount_total,
+        };
+
+        await this.mailService.sendPaymentReceipt(receiptData);
+
+        this.logger.log(
+          `✅ Payment successful, email sent to ${session.customer_details.email}`,
+        );
+
         break;
 
       default:
