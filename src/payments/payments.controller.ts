@@ -18,6 +18,7 @@ import { Public } from 'src/auth/decorators/public.decorator';
 import { ProviderValidationPipe } from './pipes/provider-validation.pipe';
 import { PaymentProvider } from './payments.enum';
 import { ThreeDSValidationPipe } from './pipes/threeds-validation.pipe';
+import { StripeRefundDto } from './dto/stripe/stripe-refund.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -47,6 +48,14 @@ export class PaymentsController {
   @UsePipes(ThreeDSValidationPipe)
   initThreeDS(@Body() checkoutInitDto: any): Promise<any> {
     const { provider, ...rest } = checkoutInitDto;
+    return this.paymentsService.createThreeDsPaymentSession(provider, rest);
+  }
+
+  @Public()
+  @Post('refund')
+  @UsePipes(ThreeDSValidationPipe)
+  createRefund(@Body() refundDto: any): Promise<any> {
+    const { provider, ...rest } = refundDto;
     return this.paymentsService.createThreeDsPaymentSession(provider, rest);
   }
 

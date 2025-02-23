@@ -3,6 +3,7 @@ import { PaymentStrategy } from '../interfaces/payment-strategy.interface';
 import Stripe from 'stripe';
 import { StripeInitCheckoutDto } from '../dto/stripe/stripe-init-checkout.dto';
 import { MailService } from 'src/mail/mail.service';
+import { StripeRefundDto } from '../dto/stripe/stripe-refund.dto';
 
 @Injectable()
 export class StripePaymentStrategy implements PaymentStrategy {
@@ -16,6 +17,25 @@ export class StripePaymentStrategy implements PaymentStrategy {
     this.stripe = new Stripe(this.stripeConfig.secretKey, {
       apiVersion: '2025-01-27.acacia',
     });
+  }
+
+  async createRefund(refundDto: StripeRefundDto): Promise<any> {
+    try {
+      const refund = await this.stripe.refunds.create({
+        payment_intent: refundDto.paymentIntentId,
+      });
+
+      this.logger.log(
+        `Refund created successfully for payment intent ${refundDto.paymentIntentId}`,
+      );
+      return refund;
+    } catch (error) {
+      this.logger.error(
+        `Failed to create refund for payment intent ${refundDto.paymentIntentId}`,
+        error,
+      );
+      throw error;
+    }
   }
 
   getThreeDSPaymentResult(token: string): Promise<any> {

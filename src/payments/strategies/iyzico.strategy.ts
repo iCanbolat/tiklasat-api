@@ -19,6 +19,15 @@ export class IyzicoPaymentStrategy implements PaymentStrategy {
       uri: this.iyzicoConfig.baseUrl,
     });
   }
+  
+  async createRefund(refundDto: any): Promise<any> {
+    // return new Promise((resolve, reject) => {
+    //   this.iyzipay.refund.create(refundDto, (err, result) => {
+    //     if (err) reject(err);
+    //     else resolve(result);
+    //   });
+    // });
+  }
 
   async handleWebhook(data: any,headers:any): Promise<any> {
     try {

@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { PaymentStrategy } from './interfaces/payment-strategy.interface';
 import { IyzicoPaymentStrategy } from './strategies/iyzico.strategy';
 import { StripePaymentStrategy } from './strategies/stripe.strategy';
- // import { CheckoutInitDto } from './dto/init-checkout-form.dto';
+// import { CheckoutInitDto } from './dto/init-checkout-form.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PaymentSuccessEvent } from './events/payment-success.event';
 import { PaymentProvider } from './payments.enum';
@@ -41,6 +41,11 @@ export class PaymentsService {
     return strategy.createThreeDsPaymentSession(paymentData);
   }
 
+  async createRefund(provider: PaymentProvider, refundData: any): Promise<any> {
+    const strategy = this.getPaymentProvider(provider);
+    return strategy.createRefund(refundData);
+  }
+
   async getCheckoutFormPaymentResult(
     provider: PaymentProvider,
     token: string,
@@ -57,7 +62,11 @@ export class PaymentsService {
     return strategy.getThreeDSPaymentResult(paymentId);
   }
 
-  async handleWebhook(provider: PaymentProvider, data: any, headers: Headers): Promise<any> {
+  async handleWebhook(
+    provider: PaymentProvider,
+    data: any,
+    headers: Headers,
+  ): Promise<any> {
     const strategy = this.getPaymentProvider(provider);
     return strategy.handleWebhook(data, headers);
   }
