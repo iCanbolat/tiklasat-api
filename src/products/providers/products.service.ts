@@ -25,6 +25,7 @@ import {
   ProductServiceResponse,
 } from '../interfaces';
 import { PaginatedResults } from 'src/common/interfaces';
+import { PgTable } from 'drizzle-orm/pg-core';
 
 @Injectable()
 export class ProductsService extends AbstractCrudService<typeof ProductTable> {
@@ -135,38 +136,65 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return { product, attributes, images };
   }
 
-  async findOne(productId: string): Promise<ProductResponseDto> {
-    const [parentProduct] = await this.findOneProduct(productId);
+  //Refactor
+  async findOne(
+    productId: string,
+    options?: {
+      includeVariant?: boolean;
+      select?: { product?: Partial<Record<keyof IProduct, boolean>> };
+    },
+  ): Promise<ProductResponseDto> {
+    const [product] = await this.findOneProduct(
+      productId,
+      false,
+      options?.select ?? {},
+    );
 
-    if (!parentProduct) {
+    if (!product) {
       throw new Error(`Product with id ${productId} not found.`);
     }
 
-    const variants = await this.findOneProduct(productId, true);
+    if (options?.includeVariant) {
+      const variants = await this.findOneProduct(productId, true);
 
-    const structuredResponse = {
+      const structuredResponse = {
+        product: {
+          ...product.product,
+          attributes: product.attributes ?? [],
+          images: product.images ?? [],
+        },
+        variants: variants.map((row) => ({
+          ...row.product,
+          attributes: row.attributes ?? [],
+          images: row.images ?? [],
+        })),
+      };
+
+      return structuredResponse;
+    }
+
+    return {
       product: {
-        ...parentProduct.product,
-        attributes: parentProduct.attributes ?? [],
-        images: parentProduct.images ?? [],
+        ...product.product,
+        attributes: product.attributes ?? [],
+        images: product.images ?? [],
       },
-      variants: variants.map((row) => ({
-        ...row.product,
-        attributes: row.attributes ?? [],
-        images: row.images ?? [],
-      })),
     };
-
-    return structuredResponse;
   }
 
   private async findOneProduct(
     productId: string,
-    isVariant: boolean = false,
+    isVariant?: boolean,
+    select: { product?: Partial<Record<keyof IProduct, boolean>> } = {},
   ): Promise<ProductServiceResponse[]> {
+    const selectedProductFields = this.mapSelectFields(
+      ProductTable,
+      select.product,
+    );
+
     const product = await this.drizzleService.db
       .select({
-        product: ProductTable as unknown as SQL.Aliased<IProduct>,
+        product: selectedProductFields as unknown as SQL.Aliased<IProduct>,
         images: this.getImageSelect() as unknown as SQL.Aliased<
           IProductImages[]
         >,
@@ -184,7 +212,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         eq(ProductVariantTable.productId, ProductTable.id),
       )
       .where(eq(isVariant ? ProductTable.parentId : ProductTable.id, productId))
-      .groupBy(ProductTable.id)
+      .groupBy(ProductTable.id, ProductImageTable.id, ProductVariantTable.id)
       .execute();
 
     return product;
@@ -359,6 +387,21 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   //     jsonb_build_object('id', ${ProductImageTable.id}, 'url', ${ProductImageTable.url})
   //     ) FILTER (WHERE ${ProductImageTable.id} IS NOT NULL)`.as('images');
   // }
+
+  private mapSelectFields<T extends PgTable<any>>(
+    table: T,
+    selectFields?: Partial<Record<keyof IProduct, boolean>>,
+  ): Record<string, any> {
+    if (!selectFields || Object.keys(selectFields).length === 0) {
+      return table; 
+    }
+
+    return Object.fromEntries(
+      Object.entries(selectFields)
+        .filter(([_, include]) => include)
+        .map(([key]) => [key, table[key as keyof typeof table]]),
+    );
+  }
 
   private getImageSelect = () => ({
     url: ProductImageTable.url,

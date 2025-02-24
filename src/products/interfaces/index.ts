@@ -33,7 +33,7 @@ export type ProductResponseDto = {
     attributes: IProductAttributes[];
     images: IProductImages[];
   };
-  variants: IProduct[];
+  variants?: IProduct[];
 };
 
 export type FindAllProductsReturnDto = Omit<ProductResponseDto, 'variants'>;

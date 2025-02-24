@@ -6,9 +6,15 @@ import { StripePaymentStrategy } from './strategies/stripe.strategy';
 import { PaymentsService } from './payments.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MailModule } from 'src/mail/mail.module';
+import { ProductsModule } from 'src/products/products.module';
 
 @Module({
-  imports: [ConfigModule, MailModule, EventEmitterModule.forRoot()],
+  imports: [
+    ConfigModule,
+    MailModule,
+    EventEmitterModule.forRoot(),
+    ProductsModule,
+  ],
   controllers: [PaymentsController],
   providers: [
     // {
