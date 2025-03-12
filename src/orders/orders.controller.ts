@@ -19,7 +19,7 @@ export class OrdersController {
   @Public()
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {
-    return this.ordersService.create(createOrderDto);
+    // return this.ordersService.create(createOrderDto);
   }
 
   @Get()
@@ -33,7 +33,7 @@ export class OrdersController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
+  update(@Param('id') id: string, @Body() updateOrderDto: any) {
     return this.ordersService.update(+id, updateOrderDto);
   }
 

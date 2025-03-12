@@ -1,9 +1,12 @@
+import { addressRelations, AddressTable } from './addresses.schema';
 import {
   categoryRelations,
   CategoryTable,
   ProductCategoryTable,
   productsToCategoriesRelations,
 } from './categories.schema';
+import { customerRelations, CustomerTable } from './customer-details.schema';
+import { GuestTable } from './guests.schema';
 import { orderItemRelations, OrderItemTable } from './order-items.schema';
 import { orderRelations, OrderTable } from './orders.schema';
 import { paymentRelations, PaymentTable } from './payments.schema';
@@ -17,9 +20,9 @@ import {
 } from './products.schema';
 import { reviewRelations, ReviewTable } from './reviews.schema';
 import { UserTable } from './users.schema';
+import { wishListRelations, WishlistTable } from './wishlists.schema';
 
 export {
-  OrderTable,
   OrderItemTable,
   PaymentTable,
   ReviewTable,
@@ -39,6 +42,13 @@ export const databaseSchema = {
   payments: PaymentTable,
   reviews: ReviewTable,
   categories: CategoryTable,
+  addresses: AddressTable,
+  wishLists: WishlistTable,
+  guestsTable: GuestTable,
+  wishListRelations: wishListRelations,
+  customerDetails: CustomerTable,
+  customerRelations: customerRelations,
+  addressRelations: addressRelations,
   productsToCategoriesRelations: productsToCategoriesRelations,
   categoryRelations: categoryRelations,
   orderItemRelations: orderItemRelations,

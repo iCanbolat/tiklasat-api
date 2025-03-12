@@ -27,12 +27,7 @@ export class CreateOrderDto {
   @IsUUID()
   @IsOptional()
   userId?: string;
-
-  // @ValidateNested()
-  // @Type(() => BuyerDto)
-  // @IsOptional()
-  // guestUser?: BuyerDto;
-
+  
   @IsEnum(OrderStatusEnum.enumValues)
   @IsOptional()
   status?: OrderStatusType;

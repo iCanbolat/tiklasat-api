@@ -1,10 +1,18 @@
+import {
+  IProduct,
+  IProductAttributes,
+  IProductImages,
+} from 'src/products/interfaces';
+
 export class CreateReceiptMailDto {
   email: string;
   name: string;
+  total: number | string;
   items: {
-    name: string;
     quantity: number;
-    price: string;
+    product: IProduct & {
+      attributes: IProductAttributes[];
+      images: IProductImages[];
+    };
   }[];
-  total: number;
 }

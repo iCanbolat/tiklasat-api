@@ -1,6 +1,12 @@
 // import { CreateThreeDsPaymentDto } from '../dto/create-payment.dto';
 
-export interface PaymentStrategy {
+import { Address, Buyer } from 'src/common/types';
+import {
+  PaymentCardFamily,
+  PaymentCardType,
+} from 'src/database/schemas/payments.schema';
+
+export interface IProvider {
   createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any>;
 
   createRefund(refundDto: any): Promise<any>;
@@ -9,9 +15,22 @@ export interface PaymentStrategy {
     checkoutInitDto: any,
   ): Promise<{ paymentUrl: string; token?: string }>;
 
-  getCheckoutFormPaymentResult(token: string): Promise<any>;
+  getOrderData(token: string): Promise<any>;
+
+  getCheckoutFormPaymentResult(token: string): Promise<CheckoutFormResult>;
 
   getThreeDSPaymentResult(token: string): Promise<any>;
 
   handleWebhook(data: any, headers: Headers): Promise<any>;
 }
+
+export type CheckoutFormResult = {
+  total: number | string;
+  buyer: Buyer;
+  cardType: PaymentCardType;
+  cardFamily: PaymentCardFamily;
+  installments: number;
+  lastFourDigits: string;
+  paymentId: string;
+  addresses: Address[];
+};

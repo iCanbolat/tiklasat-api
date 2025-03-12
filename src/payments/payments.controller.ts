@@ -11,7 +11,7 @@ import {
   Req,
   RawBodyRequest,
 } from '@nestjs/common';
-import { PaymentsService } from './payments.service';
+import { PaymentsService } from './providers/payments.service';
 // import { UpdatePaymentDto } from './dto/update-payment.dto';
 // import { CheckoutInitDto } from './dto/init-checkout-form.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
@@ -19,18 +19,25 @@ import { ProviderValidationPipe } from './pipes/provider-validation.pipe';
 import { PaymentProvider } from './payments.enum';
 import { ThreeDSValidationPipe } from './pipes/threeds-validation.pipe';
 import { StripeRefundDto } from './dto/stripe/stripe-refund.dto';
+import { Request } from 'express';
+import { GetUserId } from 'src/auth/decorators/get-user.decorator';
 
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @Public()
+  // @Public()
   @Post('checkout-form-retrieve')
   checkoutFormRetrieve(
     @Body('token') token: string,
     @Body('provider') provider: PaymentProvider,
+    @GetUserId() userId: string,
   ) {
-    return this.paymentsService.getCheckoutFormPaymentResult(provider, token);
+    return this.paymentsService.getCheckoutFormPaymentResult(
+      provider,
+      token,
+      userId,
+    );
   }
 
   @Public()

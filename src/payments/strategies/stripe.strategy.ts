@@ -1,12 +1,12 @@
 import { Inject, Injectable, Logger, RawBodyRequest } from '@nestjs/common';
-import { PaymentStrategy } from '../interfaces/payment-strategy.interface';
+import { IProvider } from '../interfaces/payment-strategy.interface';
 import Stripe from 'stripe';
 import { StripeInitCheckoutDto } from '../dto/stripe/stripe-init-checkout.dto';
 import { MailService } from 'src/mail/mail.service';
 import { StripeRefundDto } from '../dto/stripe/stripe-refund.dto';
 
 @Injectable()
-export class StripePaymentStrategy implements PaymentStrategy {
+export class StripePaymentStrategy implements IProvider {
   private readonly logger = new Logger(StripePaymentStrategy.name);
   private stripe: Stripe;
 
@@ -66,23 +66,7 @@ export class StripePaymentStrategy implements PaymentStrategy {
     switch (event.type) {
       case 'checkout.session.completed':
         const session = event.data.object as Stripe.Checkout.Session;
-
-        const lineItems = await this.stripe.checkout.sessions.listLineItems(
-          session.id,
-        );
-
-        const items = lineItems.data.map((item) => ({
-          name: item.description,
-          quantity: item.quantity,
-          price: (item.amount_total / 100).toFixed(2),
-        }));
-
-        const receiptData = {
-          email: session.customer_details.email,
-          name: session.customer_details.name,
-          items,
-          total: session.amount_total,
-        };
+        const receiptData = await this.getOrderData(session.id, session);
 
         await this.mailService.sendPaymentReceipt(receiptData);
 
@@ -124,7 +108,32 @@ export class StripePaymentStrategy implements PaymentStrategy {
 
     return { paymentUrl: response.url };
   }
+  
   async getCheckoutFormPaymentResult(token: string): Promise<any> {
     return await this.stripe.checkout.sessions.retrieve(token);
+  }
+
+  async getOrderData(
+    token: string,
+    checkoutSession?: Stripe.Checkout.Session,
+  ): Promise<any> {
+    const [lineItems, retrieveCheckout] = await Promise.all([
+      this.stripe.checkout.sessions.listLineItems(token),
+      checkoutSession ?? this.stripe.checkout.sessions.retrieve(token),
+    ]);
+
+    const orderItems = lineItems.data.map((item) => ({
+      name: item.description,
+      quantity: item.quantity,
+      price: (item.amount_total / 100).toFixed(2),
+    }));
+
+    return {
+      email: retrieveCheckout.customer_details.email,
+      name: retrieveCheckout.customer_details.name,
+      
+      items: orderItems,
+      total: retrieveCheckout.amount_total,
+    };
   }
 }

@@ -11,17 +11,14 @@ export class LocalAuthGuard extends AuthGuard('local') {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
 
-    // transform the request body object to class instance
     const body = plainToClass(SignInDto, request.body);
 
-    // get a list of errors
     const errors = await validate(body);
 
-    // extract error messages from the errors array
     const errorMessages = errors.flatMap(({ constraints }) =>
       Object.values(constraints),
     );
-
+  
     if (errorMessages.length > 0) {
       response.status(HttpStatus.BAD_REQUEST).send({
         statusCode: HttpStatus.BAD_REQUEST,

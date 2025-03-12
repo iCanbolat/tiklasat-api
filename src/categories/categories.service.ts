@@ -7,10 +7,9 @@ import {
   ProductCategoryTable,
 } from 'src/database/schemas/categories.schema';
 import { and, eq, inArray, SQL, sql } from 'drizzle-orm';
-import { ProductTable } from 'src/database/schemas';
-import { UpdateCategoryProductsDto } from './dto/update-category-products.dto';
+ import { UpdateCategoryProductsDto } from './dto/update-category-products.dto';
 import slugify from 'slugify';
-import { ProductImageTable } from 'src/database/schemas/products.schema';
+import { ProductImageTable, ProductTable } from 'src/database/schemas/products.schema';
 import { FindOneCategoryResponseDto, ICategory, ICategoryTree, IProduct } from './interfaces';
 
 @Injectable()

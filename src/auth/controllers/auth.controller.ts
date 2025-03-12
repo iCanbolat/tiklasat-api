@@ -102,8 +102,8 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get current user',
     description: 'This endpoint returns the current authenticated user.',

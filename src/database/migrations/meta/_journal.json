@@ -8,6 +8,34 @@
       "when": 1717589858828,
       "tag": "0000_create-users-table",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1740829413642,
+      "tag": "0001_dapper_sprite",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1740834630694,
+      "tag": "0002_nosy_black_bolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1741170372081,
+      "tag": "0003_silent_rick_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1741170697740,
+      "tag": "0004_dry_quentin_quire",
+      "breakpoints": true
     }
   ]
 }

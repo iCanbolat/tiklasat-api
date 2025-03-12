@@ -3,7 +3,7 @@ import { PaymentsController } from './payments.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { IyzicoPaymentStrategy } from './strategies/iyzico.strategy';
 import { StripePaymentStrategy } from './strategies/stripe.strategy';
-import { PaymentsService } from './payments.service';
+import { PaymentsService } from './providers/payments.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MailModule } from 'src/mail/mail.module';
 import { ProductsModule } from 'src/products/products.module';

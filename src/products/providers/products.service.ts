@@ -24,7 +24,7 @@ import {
   ProductResponseDto,
   ProductServiceResponse,
 } from '../interfaces';
-import { PaginatedResults } from 'src/common/interfaces';
+import { PaginatedResults } from 'src/common/types';
 import { PgTable } from 'drizzle-orm/pg-core';
 
 @Injectable()
@@ -393,7 +393,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     selectFields?: Partial<Record<keyof IProduct, boolean>>,
   ): Record<string, any> {
     if (!selectFields || Object.keys(selectFields).length === 0) {
-      return table; 
+      return table;
     }
 
     return Object.fromEntries(

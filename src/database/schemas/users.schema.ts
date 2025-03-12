@@ -19,7 +19,6 @@ export const UserTable = pgTable('users', {
   name: text('name'),
   email: text('email').unique().notNull(),
   password: text('password'),
-  address: varchar('address', { length: 255 }),
   phone: varchar('phone', { length: 50 }),
   role: UserRoleStatusEnum('role').default(UserRole.enum.ADMIN).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
