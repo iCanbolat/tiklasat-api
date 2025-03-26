@@ -15,13 +15,16 @@ export type PaginatedResults<T> = {
   };
 };
 
-export enum AddressType {
+export type AddressType = 'billing' | 'shipping';
+
+export enum AddressTypeEnum {
   BILLING = 'billing',
   SHIPPING = 'shipping',
 }
 
 export type Address = {
-  addressType: AddressType;
+  id?: string;
+  type: AddressType;
   street: string;
   city: string;
   state?: string;
@@ -30,9 +33,9 @@ export type Address = {
 };
 
 export type Buyer = {
-  name: string;
+  name?: string;
   email: string;
-  phone: string;
+  phone?: string;
 };
 
 export type OrderItem = {

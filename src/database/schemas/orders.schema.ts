@@ -4,12 +4,9 @@ import {
   timestamp,
   uuid,
   pgEnum,
-  text,
-  jsonb,
   AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { UserTable } from './users.schema';
 import { PaymentTable } from './payments.schema';
 import { OrderItemTable } from './order-items.schema';
 import { CustomerTable } from './customer-details.schema';
@@ -25,22 +22,17 @@ export const OrderStatusEnum = pgEnum('order_status', [
   'RETURNED',
 ]);
 
-const GuestUserSchema = z.object({
-  name: z.string(),
-  email: z.string().email(),
-  phone: z.string(),
-  address: z.string(),
-});
-
 export const OrderStatus = z.enum(OrderStatusEnum.enumValues);
 export type OrderStatusType = z.infer<typeof OrderStatus>;
 
 export const OrderTable = pgTable('orders', {
   id: uuid('id').primaryKey().defaultRandom(),
-  customerId: uuid('customer_id').references(() => CustomerTable.id, {
+  userId: uuid('customer_id').references(() => CustomerTable.userId, {
     onDelete: 'cascade',
   }),
-  guestId: uuid('guest_id').references(() => GuestTable.id, { onDelete: 'cascade' }),
+  guestId: uuid('guest_id').references(() => GuestTable.id, {
+    onDelete: 'cascade',
+  }),
   billingAddressId: uuid('billing_address_id')
     .references((): AnyPgColumn => AddressTable.id, { onDelete: 'set null' })
     .default(null),
@@ -56,8 +48,8 @@ export const OrderTable = pgTable('orders', {
 
 export const orderRelations = relations(OrderTable, ({ many, one }) => ({
   customer: one(CustomerTable, {
-    fields: [OrderTable.customerId],
-    references: [CustomerTable.id],
+    fields: [OrderTable.userId],
+    references: [CustomerTable.userId],
   }),
   billingAddress: one(AddressTable, {
     fields: [OrderTable.billingAddressId],

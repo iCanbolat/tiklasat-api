@@ -7,33 +7,25 @@ import { OrderItemTable } from 'src/database/schemas/order-items.schema';
 import { AddressTable } from 'src/database/schemas/addresses.schema';
 import { OrderTable } from 'src/database/schemas/orders.schema';
 import { CustomerTable } from 'src/database/schemas/customer-details.schema';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class OrdersService {
   constructor(private drizzleService: DrizzleService) {}
 
-  async create(createOrderDto: IOrderInstanceDto): Promise<{ id: string }> {
-    const { items, status, userId, total, address, buyer } = createOrderDto;
+  async create(createOrderDto: CreateOrderDto): Promise<{ id: string }> {
+    const { items, status, customer } = createOrderDto;
 
+    console.log('customer', customer);
+    
     const [order] = await this.drizzleService.db
       .insert(OrderTable)
       .values({
-        customerId: userId ?? null,
+        ...(customer.type === 'user' ? { userId: customer.id } : {}),
+        ...(customer.type === 'guest' ? { guestId: customer.id } : {}),
         status,
       })
       .returning({ id: OrderTable.id });
-
-    address.forEach(async (address) => {
-      await this.drizzleService.db.insert(AddressTable).values({
-        ...address,
-        orderId: order.id,
-      });
-    });
-
-    await this.drizzleService.db.insert(CustomerTable).values({
-      ...buyer,
-      userId: userId ?? null,
-    });
 
     const orderItems = items.map((item) => ({
       ...item,
@@ -53,8 +45,19 @@ export class OrdersService {
     return `This action returns a #${id} order`;
   }
 
-  update(id: number, updateOrderDto: IOrderInstanceDto) {
-    return `This action updates a #${id} order`;
+  async update(id: string, updateOrderDto: Partial<CreateOrderDto>) {
+    const { addressIds, status } = updateOrderDto;
+
+    return await this.drizzleService.db
+      .update(OrderTable)
+      .set({
+        billingAddressId: addressIds.at(0),
+        shippingAddressId: addressIds.at(1),
+        status,
+      })
+      .where(eq(OrderTable.id, id))
+      .returning({ id: OrderTable.id })
+      .then((res) => res[0]);
   }
 
   remove(id: number) {

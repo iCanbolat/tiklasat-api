@@ -7,6 +7,9 @@ import { PaymentsService } from './providers/payments.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { MailModule } from 'src/mail/mail.module';
 import { ProductsModule } from 'src/products/products.module';
+import { AuthModule } from 'src/auth/auth.module';
+import { OrdersModule } from 'src/orders/orders.module';
+import { PaymentListener } from 'src/common/listeners/payment.listener';
 
 @Module({
   imports: [
@@ -14,6 +17,8 @@ import { ProductsModule } from 'src/products/products.module';
     MailModule,
     EventEmitterModule.forRoot(),
     ProductsModule,
+    AuthModule,
+    OrdersModule,
   ],
   controllers: [PaymentsController],
   providers: [
@@ -43,6 +48,7 @@ import { ProductsModule } from 'src/products/products.module';
     PaymentsService,
     StripePaymentStrategy,
     IyzicoPaymentStrategy,
+    PaymentListener
   ],
   exports: [IyzicoPaymentStrategy, StripePaymentStrategy],
 })

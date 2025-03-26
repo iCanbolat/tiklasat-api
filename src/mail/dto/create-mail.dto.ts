@@ -6,7 +6,6 @@ import {
 
 export class CreateReceiptMailDto {
   email: string;
-  name: string;
   total: number | string;
   items: {
     quantity: number;

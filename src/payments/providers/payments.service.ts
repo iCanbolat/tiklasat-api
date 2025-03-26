@@ -1,5 +1,8 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { IProvider } from '../interfaces/payment-strategy.interface';
+import {
+  CheckoutFormResponse,
+  IProvider,
+} from '../interfaces/payment-strategy.interface';
 import { IyzicoPaymentStrategy } from '../strategies/iyzico.strategy';
 import { StripePaymentStrategy } from '../strategies/stripe.strategy';
 // import { CheckoutInitDto } from './dto/init-checkout-form.dto';
@@ -10,6 +13,11 @@ import { DrizzleService } from 'src/database/drizzle.service';
 import { PaymentTable } from 'src/database/schemas';
 import { CustomerTable } from 'src/database/schemas/customer-details.schema';
 import { AddressTable } from 'src/database/schemas/addresses.schema';
+import { GuestTable } from 'src/database/schemas/guests.schema';
+import { eq, sql } from 'drizzle-orm';
+import { CustomerService } from 'src/auth/providers/customer.service';
+import { OrdersService } from 'src/orders/orders.service';
+import { Address } from 'src/common/types';
 
 @Injectable()
 export class PaymentsService {
@@ -17,7 +25,8 @@ export class PaymentsService {
     private stripePayment: StripePaymentStrategy,
     private iyzicoPayment: IyzicoPaymentStrategy,
     private drizzleService: DrizzleService,
-    private eventEmitter: EventEmitter2,
+    private customerService: CustomerService,
+    private orderService: OrdersService,
   ) {}
 
   getPaymentProvider(provider: string): IProvider {
@@ -51,46 +60,66 @@ export class PaymentsService {
     return strategy.createRefund(refundData);
   }
 
+  async findOne(paymentId: string): Promise<any> {
+    return await this.drizzleService.db
+      .select()
+      .from(PaymentTable)
+      .where(eq(PaymentTable.paymentId, paymentId))
+      .execute();
+  }
+
   async getCheckoutFormPaymentResult(
     provider: PaymentProvider,
     token: string,
+    ip: string,
     userId?: string,
-  ): Promise<any> {
+  ): Promise<CheckoutFormResponse> {
     const strategy = this.getPaymentProvider(provider);
     const result = await strategy.getCheckoutFormPaymentResult(token);
-    let customerId: string;
 
-    await this.drizzleService.db.insert(PaymentTable).values({
-      amount: String(result.total),
-      cardFamily: result.cardFamily,
-      cardType: result.cardType,
-      currency: 'USD',
-      lastFourDigits: result.lastFourDigits,
-      installments: result.installments,
-      paymentId: result.paymentId,
+    const customer = await this.customerService.findOrCreate({
+      email: result.buyer.email,
+      phone: result.buyer.phone,
+      userId,
     });
 
-    if (userId) {
-      [customerId] = await this.drizzleService.db
-        .insert(CustomerTable)
-        .values({
-          userId,
-        })
-        .returning({ id: CustomerTable.id })
-        .then((res) => res.map((r) => r.id));
-    }
-
-    result.addresses.forEach(async (address) => {
-      await this.drizzleService.db.insert(AddressTable).values({
-        customerId: userId,
-        street: address.street,
-        city: address.city,
-        country: address.country,
-        zipCode: address.zipCode,
-        state: address.state,
-        addressType: address.addressType,
-      });
+    const { id: orderId } = await this.orderService.create({
+      items: result.items,
+      customer,
     });
+
+    const [{ paymentCreatedAt }] = await this.drizzleService.db
+      .insert(PaymentTable)
+      .values({
+        amount: String(result.total),
+        cardFamily: result.cardFamily,
+        cardType: result.cardType,
+        currency: 'USD',
+        lastFourDigits: result.lastFourDigits,
+        installments: result.installments,
+        paymentId: result.paymentId,
+        [`${customer.type}Id`]: customer.id,
+        orderId,
+        ip,
+      })
+      .returning({ paymentCreatedAt: PaymentTable.createdAt });
+
+    const { addressStrings } = await this.customerService.prepareAddressData(
+      result.addresses,
+      customer,
+      orderId,
+    );
+
+    return {
+      orderId,
+      email: result.buyer.email,
+      name: result.buyer.name,
+      paymentCreatedAt,
+      total: result.total,
+      billingAddress: addressStrings.at(0),
+      shippingAddress: addressStrings.at(1),
+      items: result.items,
+    };
   }
 
   async getThreeDSPaymentResult(

@@ -5,7 +5,7 @@ import { relations } from 'drizzle-orm';
 
 export const WishlistTable = pgTable('wishlist', {
   id: uuid('id').primaryKey().defaultRandom(),
-  customerId: uuid('customer_id').references(() => CustomerTable.id, {
+  customerId: uuid('customer_id').references(() => CustomerTable.userId, {
     onDelete: 'cascade',
   }),
   productId: uuid('product_id').references(() => ProductTable.id, {
@@ -15,6 +15,6 @@ export const WishlistTable = pgTable('wishlist', {
 });
 
 export const wishListRelations = relations(WishlistTable, ({ one, many }) => ({
-  customer: one(CustomerTable, { fields: [WishlistTable.customerId], references: [CustomerTable.id] }),
+  customer: one(CustomerTable, { fields: [WishlistTable.customerId], references: [CustomerTable.userId] }),
   product: one(ProductTable, { fields: [WishlistTable.productId], references: [ProductTable.id] }),
 }));

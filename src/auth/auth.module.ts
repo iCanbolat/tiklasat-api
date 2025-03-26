@@ -10,7 +10,9 @@ import { BcryptService } from './providers/bcrypt.service';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenStrategy } from './strategies/refresh-token-strategy';
- 
+import { CustomerService } from './providers/customer.service';
+import { CustomerController } from './controllers/customer.controller';
+
 @Module({
   imports: [
     JwtModule.registerAsync({
@@ -35,7 +37,9 @@ import { RefreshTokenStrategy } from './strategies/refresh-token-strategy';
     LocalStrategy,
     JwtStrategy,
     RefreshTokenStrategy,
+    CustomerService,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, CustomerController],
+  exports: [CustomerService],
 })
 export class AuthModule {}

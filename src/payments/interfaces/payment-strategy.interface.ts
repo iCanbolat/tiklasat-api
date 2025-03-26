@@ -1,10 +1,7 @@
 // import { CreateThreeDsPaymentDto } from '../dto/create-payment.dto';
 
-import { Address, Buyer } from 'src/common/types';
-import {
-  PaymentCardFamily,
-  PaymentCardType,
-} from 'src/database/schemas/payments.schema';
+import { Address, Buyer, OrderItem } from 'src/common/types';
+import { PaymentCardType } from 'src/database/schemas/payments.schema';
 
 export interface IProvider {
   createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any>;
@@ -28,9 +25,26 @@ export type CheckoutFormResult = {
   total: number | string;
   buyer: Buyer;
   cardType: PaymentCardType;
-  cardFamily: PaymentCardFamily;
+  cardFamily: string;
   installments: number;
   lastFourDigits: string;
-  paymentId: string;
+  paymentId?: string;
   addresses: Address[];
+  items: OrderItem[];
+};
+
+export type CheckoutFormResponse = {
+  items: OrderItem[];
+  total: number | string;
+  billingAddress: string;
+  shippingAddress: string;
+  orderId: string;
+  paymentCreatedAt: Date;
+  email?: string;
+  name: string;
+};
+
+export type Customer = Omit<Buyer, 'name'> & {
+  id: string;
+  type: 'user' | 'guest';
 };

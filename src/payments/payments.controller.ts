@@ -26,16 +26,18 @@ import { GetUserId } from 'src/auth/decorators/get-user.decorator';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  // @Public()
+  @Public()
   @Post('checkout-form-retrieve')
   checkoutFormRetrieve(
+    @Req() request: Request,
     @Body('token') token: string,
     @Body('provider') provider: PaymentProvider,
-    @GetUserId() userId: string,
+    @GetUserId() userId?: string,
   ) {
     return this.paymentsService.getCheckoutFormPaymentResult(
       provider,
       token,
+      request.ip,
       userId,
     );
   }

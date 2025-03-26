@@ -8,16 +8,18 @@ import {
 } from 'drizzle-orm/pg-core';
 import { OrderTable } from './orders.schema';
 import { CustomerTable } from './customer-details.schema';
+import { GuestTable } from './guests.schema';
 
 export const AddressTable = pgTable('addresses', {
   id: uuid('id').primaryKey().defaultRandom(),
-  customerId: uuid('customer_id').references(() => CustomerTable.id, {
+  userId: uuid('customer_id').references(() => CustomerTable.userId, {
     onDelete: 'cascade',
   }),
+  guestId: uuid('guest_id').references(() => GuestTable.id, { onDelete: 'cascade' }), // ✅ Guests
   orderId: uuid('order_id').references((): AnyPgColumn => OrderTable.id, {
     onDelete: 'cascade',
   }),
-  addressType: varchar('address_type', { length: 20 }).notNull(), // 'billing' or 'shipping'
+  type: varchar('address_type', { length: 20 }).notNull(), // 'billing' or 'shipping'
   street: varchar('street', { length: 255 }).notNull(),
   city: varchar('city', { length: 100 }).notNull(),
   state: varchar('state', { length: 100 }),
@@ -28,8 +30,8 @@ export const AddressTable = pgTable('addresses', {
 
 export const addressRelations = relations(AddressTable, ({ one }) => ({
   customer: one(CustomerTable, {
-    fields: [AddressTable.customerId],
-    references: [CustomerTable.id],
+    fields: [AddressTable.userId],
+    references: [CustomerTable.userId],
   }),
   order: one(OrderTable, {
     fields: [AddressTable.orderId],

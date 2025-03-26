@@ -69,7 +69,11 @@ export class BuyerDto {
   zipCode?: string;
 }
 
-export class AddressDto {
+export class IyzıcoAddressDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsString()
   contactName: string;
 
@@ -116,12 +120,12 @@ export class BasePaymentDto {
   buyer: BuyerDto;
 
   @ValidateNested()
-  @Type(() => AddressDto)
-  shippingAddress: AddressDto;
+  @Type(() => IyzıcoAddressDto)
+  shippingAddress: IyzıcoAddressDto;
 
   @ValidateNested()
-  @Type(() => AddressDto)
-  billingAddress: AddressDto;
+  @Type(() => IyzıcoAddressDto)
+  billingAddress: IyzıcoAddressDto;
 
   @IsArray()
   @ValidateNested({ each: true })

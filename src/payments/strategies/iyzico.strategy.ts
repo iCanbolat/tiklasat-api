@@ -7,13 +7,15 @@ import {
 import * as Iyzipay from 'iyzipay';
 import * as crypto from 'crypto';
 import { ProductsService } from 'src/products/providers/products.service';
-import { AddressType, IOrderInstanceDto } from 'src/common/types';
+import {
+  AddressType,
+  AddressTypeEnum,
+  IOrderInstanceDto,
+} from 'src/common/types';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrderStatus } from 'src/database/schemas/orders.schema';
-import {
-  PaymentCardFamily,
-  PaymentCardType,
-} from 'src/database/schemas/payments.schema';
+import { PaymentCardType } from 'src/database/schemas/payments.schema';
+import { OrdersService } from 'src/orders/orders.service';
 
 // import Iyzipay from '@codingwithmanny/iyzipay-js';
 // import { CheckoutInitDto } from '../dto/init-checkout-form.dto';
@@ -37,6 +39,7 @@ export class IyzicoPaymentStrategy implements IProvider {
   constructor(
     @Inject('IyzicoConfig') private readonly iyzicoConfig,
     private readonly productService: ProductsService,
+    private readonly orderService: OrdersService,
     private eventEmitter: EventEmitter2,
   ) {
     this.iyzipay = new Iyzipay({
@@ -134,7 +137,8 @@ export class IyzicoPaymentStrategy implements IProvider {
         if (!address) return null;
 
         return {
-          addressType: idx === 0 ? AddressType.BILLING : AddressType.SHIPPING,
+          id: address.id,
+          type: idx === 0 ? AddressTypeEnum.BILLING : AddressTypeEnum.SHIPPING,
           city: address.city,
           country: address.country,
           street: address.address,
@@ -155,8 +159,10 @@ export class IyzicoPaymentStrategy implements IProvider {
         this.iyzipay.checkoutFormInitialize.create(
           checkoutInitDto,
           (err, result) => {
-            if (err) reject(err);
-            else {
+            if (err) {
+              reject(err);
+              console.log(err);
+            } else {
               resolve({
                 token: result.token,
                 paymentUrl: result.paymentPageUrl,
@@ -204,21 +210,20 @@ export class IyzicoPaymentStrategy implements IProvider {
     this.orderInstanceDto.total = result.paidPrice;
     this.orderInstanceDto.items = orderItems;
 
-    this.eventEmitter.emit('payment.success', this.orderInstanceDto);
-
     return {
       buyer: {
-        name: result.buyer.name,
-        email: result.buyer.email,
-        phone: result.buyer.gsmNumber,
+        name: this.orderInstanceDto.buyer.name,
+        email: this.orderInstanceDto.buyer?.email,
+        phone: this.orderInstanceDto.buyer?.phone,
       },
       total: result.paidPrice,
-      cardFamily: result.cardFamily as PaymentCardFamily,
+      cardFamily: result.cardFamily,
       cardType: result.cardType as PaymentCardType,
       installments: result.installment,
       lastFourDigits: result.lastFourDigits,
       paymentId: result.paymentId,
       addresses: this.orderInstanceDto.address,
+      items: orderItems,
     };
   }
 

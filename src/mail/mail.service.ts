@@ -19,7 +19,7 @@ export class MailService {
       process.cwd(),
       'src//mails/templates',
       `${templateName}.hbs`,
-    ); 
+    );
 
     if (!fs.existsSync(filePath)) {
       this.logger.error(`❌ Email template not found: ${filePath}`);
@@ -32,13 +32,11 @@ export class MailService {
 
   async sendPaymentReceipt({
     email,
-    name,
     items,
     total,
   }: CreateReceiptMailDto): Promise<void> {
     try {
       const emailHtml = this.getTemplate('payment-receipt', {
-        name,
         items,
         total,
       });
