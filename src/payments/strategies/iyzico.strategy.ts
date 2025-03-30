@@ -82,14 +82,9 @@ export class IyzicoPaymentStrategy implements IProvider {
           console.log('Payment successful:', webhookData.iyziPaymentId);
           break;
         case IyzicoStatusEnum.FAILURE:
-          
           this.eventEmitter.emit('payment.failure', {
             orderData: {
               paymentId: webhookData.iyziPaymentId,
-              items: this.orderInstanceDto.items,
-              address: this.orderInstanceDto.address,
-              total: this.orderInstanceDto.total,
-              email: this.orderInstanceDto.buyer.email,
             },
           });
           break;
