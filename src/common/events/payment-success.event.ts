@@ -1,12 +1,12 @@
-import { IOrderInstanceDto, OrderItem } from 'src/common/types';
-import { Customer } from 'src/payments/interfaces/payment-strategy.interface';
+import { Address, IOrderInstanceDto, OrderItem } from 'src/common/types';
 
 export class PaymentSuccessEvent {
   constructor(
     public readonly orderData: {
-      
       items: OrderItem[];
       paymentId: string;
+      address: Address[];
+      email: string;
     },
   ) {}
 }

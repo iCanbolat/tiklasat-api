@@ -5,56 +5,67 @@ import { CustomerTable } from 'src/database/schemas/customer-details.schema';
 import { AddressTable } from 'src/database/schemas/addresses.schema';
 import { GuestTable } from 'src/database/schemas/guests.schema';
 import { Address } from 'src/common/types';
-import { Customer } from 'src/payments/interfaces/payment-strategy.interface';
 import { OrderTable } from 'src/database/schemas/orders.schema';
+import {
+  Customer,
+  CustomerIdentifier,
+  CustomerType,
+} from '../interfaces/customer.types';
+import { UserTable } from 'src/database/schemas';
 
 @Injectable()
 export class CustomerService {
   constructor(private readonly drizzleService: DrizzleService) {}
 
-  async findOrCreate({
-    userId,
-    email,
-    phone,
-  }: {
-    userId?: string;
-    email: string;
-    phone: string;
-  }): Promise<Customer> {
-    let customer: Customer = {
-      email,
-      phone,
-      id: '',
-      type: userId ? 'user' : 'guest',
-    };
-
-    if (userId) {
-      customer.id = (await this.findOrInsertCustomerDetail(userId)).userId;
+  async findOrCreate(identifier: CustomerIdentifier): Promise<Customer> {
+    if (identifier.userId) {
+      const details = await this.findOrCreateUserDetails(identifier.userId);
+      return this.buildCustomerResponse(details, 'user', identifier);
     } else {
-      customer.id = (await this.findOrInstertGuestDetail(customer)).id;
+      const details = await this.findOrCreateGuestDetails(
+        identifier.email,
+        identifier.phone,
+        identifier.name,
+      );
+      return this.buildCustomerResponse(details, 'guest', identifier);
     }
-
-    return customer;
   }
 
   async createCustomerAddress(
     address: Address & { orderId: string },
     customer: Customer,
   ) {
-    const [{ id }] = await this.drizzleService.db
-      .insert(AddressTable)
-      .values({
-        ...address,
-        [`${customer.type}Id`]: customer.id,
-      })
-      .returning({
-        id: AddressTable.id,
-      });
+    let id: string;
+
+    console.log('CustomerServiceAddress:', address);
+    console.log('CustomerServiceCustomer:', customer);
+    
+
+    if (!address.id) {
+      [{ id }] = await this.drizzleService.db
+        .insert(AddressTable)
+        .values({
+          ...address,
+          [`${customer.type}Id`]: customer.id,
+        })
+        .returning({ id: AddressTable.id });
+    } else {
+      id = address.id;
+    }
+
+    if (customer.type === 'user') {
+      await this.drizzleService.db
+        .update(CustomerTable)
+        .set({
+          [`${address.type}AddressId`]: id,
+        })
+        .where(eq(CustomerTable.userId, customer.id));
+    }
 
     await this.drizzleService.db
       .update(OrderTable)
       .set({
-        [`${address.type}AddressId`]: address.id,
+        [`${address.type}AddressId`]: id,
         [`${customer.type}Id`]: customer.id,
       })
       .where(eq(OrderTable.id, address.orderId));
@@ -62,10 +73,47 @@ export class CustomerService {
     return id;
   }
 
-  async findOne(userId: string) {
-    return await this.drizzleService.db.query.customerDetails.findFirst({
-      where: (customers, { eq }) => eq(customers.userId, userId),
-    });
+  async findOne(
+    customerId: string,
+    type: CustomerType,
+  ): Promise<Customer | null> {
+    const query = this.drizzleService.db
+      .select()
+      .from(type === 'user' ? CustomerTable : GuestTable)
+      .where(
+        type === 'user'
+          ? eq(CustomerTable.userId, customerId)
+          : eq(GuestTable.id, customerId),
+      )
+      .$dynamic();
+
+    if (type === 'user') {
+      query.innerJoin(UserTable, eq(UserTable.id, CustomerTable.userId));
+    }
+
+    const result = await query.execute();
+
+    return result[0] ? this.transformToCustomer(result[0], type) : null;
+  }
+
+  private transformToCustomer(data: any, type: CustomerType): Customer {
+    const base = {
+      id: type === 'user' ? data.userId : data.id,
+      type,
+      email: data.email,
+      phone: data.phone,
+    };
+
+    if (type === 'user') {
+      return {
+        ...base,
+        // loyaltyPoints: data.loyaltyPoints,
+        // totalSpent: data.totalSpent,
+        // other user-specific fields
+      };
+    } else {
+      return base;
+    }
   }
 
   async prepareAddressData(
@@ -73,75 +121,79 @@ export class CustomerService {
     customer: Customer,
     orderId: string,
   ) {
-    const addressIds = await Promise.all(
-      addresses.map(async (address) => {
-        console.log('AddressMap:', address);
-        console.log('OrderID:', orderId);
+    const addressIds: string[] = [];    
 
-        if (address.id) {
-          await this.drizzleService.db
-            .update(CustomerTable)
-            .set({
-              [`${address.type}AddressId`]: address.id,
-            })
-            .where(eq(CustomerTable.userId, customer.id));
-
-          await this.drizzleService.db
-            .update(OrderTable)
-            .set({
-              [`${address.type}AddressId`]: address.id,
-              [`${customer.type}Id`]: customer.id,
-            })
-            .where(eq(OrderTable.id, orderId));
-
-          return address.id;
-        }
-
-        return await this.createCustomerAddress(
-          { ...address, orderId },
-          customer,
-        );
-      }),
-    );
+    for (const address of addresses) {
+      const addressId = await this.createCustomerAddress(
+        { ...address, orderId },
+        customer,
+      );
+      addressIds.push(addressId);
+    }
 
     const addressStrings = addresses.map((address) => {
       return `${address.street}, ${address.state}/${address.city}, ${address.country}, ${address.zipCode}`;
     });
+
     return {
       addressIds,
       addressStrings,
     };
   }
 
-  private async findOrInsertCustomerDetail(
-    userId: string,
-  ): Promise<typeof CustomerTable.$inferInsert> {
-    let customer = await this.getCustomerDetails(userId);
-
-    if (!customer) {
-      customer = await this.createCustomerDetails(userId);
-    }
-    return customer;
-  }
-
-  private async findOrInstertGuestDetail(customer: Customer) {
-    let [guest] = await this.drizzleService.db
+  private async findOrCreateUserDetails(userId: string) {
+    let customer = await this.drizzleService.db
       .select()
-      .from(GuestTable)
-      .where(eq(GuestTable.email, customer.email))
+      .from(CustomerTable)
+      .where(eq(CustomerTable.userId, userId))
       .execute();
 
-    if (!guest) {
-      [guest] = await this.drizzleService.db
-        .insert(GuestTable)
-        .values({
-          email: customer.email,
-          phone: customer.phone,
-        })
+    if (!customer[0]) {
+      customer = await this.drizzleService.db
+        .insert(CustomerTable)
+        .values({ userId })
         .returning();
     }
 
-    return guest;
+    return customer[0];
+  }
+
+  private async findOrCreateGuestDetails(
+    email: string,
+    phone: string,
+    name: string,
+  ) {
+    let guest = await this.drizzleService.db
+      .select()
+      .from(GuestTable)
+      .where(eq(GuestTable.email, email))
+      .execute();
+
+    if (!guest[0]) {
+      guest = await this.drizzleService.db
+        .insert(GuestTable)
+        .values({ email, phone, name })
+        .returning();
+    }
+
+    return guest[0];
+  }
+
+  private buildCustomerResponse(
+    details: any,
+    type: Customer['type'],
+    identifier: CustomerIdentifier,
+  ): Customer {
+    return {
+      id: type === 'user' ? details.userId : details.id,
+      type,
+      email: identifier.email,
+      phone: identifier.phone,
+      ...(type === 'user' && {
+        loyaltyPoints: details.loyaltyPoints || 0,
+        totalSpent: details.totalSpent || 0,
+      }),
+    };
   }
 
   async addPoints(userId: string, amountSpent: number, addresIds: string[]) {

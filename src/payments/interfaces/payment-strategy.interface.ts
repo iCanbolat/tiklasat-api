@@ -44,7 +44,4 @@ export type CheckoutFormResponse = {
   name: string;
 };
 
-export type Customer = Omit<Buyer, 'name'> & {
-  id: string;
-  type: 'user' | 'guest';
-};
+

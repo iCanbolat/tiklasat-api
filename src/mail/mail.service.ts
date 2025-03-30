@@ -17,7 +17,7 @@ export class MailService {
   private getTemplate(templateName: string, replacements: any): string {
     const filePath = path.join(
       process.cwd(),
-      'src//mails/templates',
+      'src//mail/templates',
       `${templateName}.hbs`,
     );
 
@@ -34,27 +34,32 @@ export class MailService {
     email,
     items,
     total,
+    billingAddress,
+    shippingAddress,
+    orderId,
   }: CreateReceiptMailDto): Promise<void> {
     try {
       const emailHtml = this.getTemplate('payment-receipt', {
         items,
         total,
+        billingAddress,
+        shippingAddress,
+        orderId,
       });
-
+  
       await this.resend.emails.send({
         from: process.env.EMAIL_FROM,
         to: email,
-        subject: 'Your Order Receipt',
+        subject: `Your Order Receipt - Order #${orderId}`,
         html: emailHtml,
       });
-
+  
       this.logger.log(`✅ Payment receipt sent to ${email}`);
     } catch (error) {
-      this.logger.error(
-        `❌ Failed to send email to ${email}: ${error.message}`,
-      );
+      this.logger.error(`❌ Failed to send email to ${email}: ${error.message}`);
     }
   }
+  
 
   // create(createMailDto: CreateMailDto) {
   //   return 'This action adds a new mail';

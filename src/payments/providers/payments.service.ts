@@ -18,6 +18,7 @@ import { eq, sql } from 'drizzle-orm';
 import { CustomerService } from 'src/auth/providers/customer.service';
 import { OrdersService } from 'src/orders/orders.service';
 import { Address } from 'src/common/types';
+import { PaymentStatusType } from 'src/database/schemas/payments.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -68,6 +69,18 @@ export class PaymentsService {
       .execute();
   }
 
+  async update(iyziPaymentId: string, status: PaymentStatusType) {
+    return await this.drizzleService.db
+      .update(PaymentTable)
+      .set({ status })
+      .where(sql`${PaymentTable.paymentId} = ${iyziPaymentId}`)
+      .returning({
+        orderId: PaymentTable.orderId,
+        total: PaymentTable.amount,
+      })
+      .then((res) => res[0]);
+  }
+
   async getCheckoutFormPaymentResult(
     provider: PaymentProvider,
     token: string,
@@ -80,6 +93,7 @@ export class PaymentsService {
     const customer = await this.customerService.findOrCreate({
       email: result.buyer.email,
       phone: result.buyer.phone,
+      name: result.buyer.name,
       userId,
     });
 
@@ -104,11 +118,14 @@ export class PaymentsService {
       })
       .returning({ paymentCreatedAt: PaymentTable.createdAt });
 
-    const { addressStrings } = await this.customerService.prepareAddressData(
-      result.addresses,
-      customer,
-      orderId,
-    );
+    const { addressStrings, addressIds } =
+      await this.customerService.prepareAddressData(
+        result.addresses,
+        customer,
+        orderId,
+      );
+
+    await this.orderService.update(orderId, { addressIds });
 
     return {
       orderId,

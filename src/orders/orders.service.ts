@@ -8,29 +8,34 @@ import { AddressTable } from 'src/database/schemas/addresses.schema';
 import { OrderTable } from 'src/database/schemas/orders.schema';
 import { CustomerTable } from 'src/database/schemas/customer-details.schema';
 import { eq } from 'drizzle-orm';
+import { ProductsService } from 'src/products/providers/products.service';
 
 @Injectable()
 export class OrdersService {
-  constructor(private drizzleService: DrizzleService) {}
+  constructor(
+    private drizzleService: DrizzleService,
+    private productService: ProductsService,
+  ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<{ id: string }> {
     const { items, status, customer } = createOrderDto;
 
-    console.log('customer', customer);
-    
     const [order] = await this.drizzleService.db
       .insert(OrderTable)
       .values({
-        ...(customer.type === 'user' ? { userId: customer.id } : {}),
-        ...(customer.type === 'guest' ? { guestId: customer.id } : {}),
+        [`${customer.type}Id`]: customer.id,
         status,
       })
       .returning({ id: OrderTable.id });
 
     const orderItems = items.map((item) => ({
-      ...item,
+      quantity: item.quantity,
+      productId: item.product.id,
       orderId: order.id,
     }));
+
+    console.log(orderItems);
+    
 
     await this.drizzleService.db.insert(OrderItemTable).values(orderItems);
 
@@ -41,14 +46,51 @@ export class OrdersService {
     return `This action returns all orders`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} order`;
+  async findOne(id: string) {
+    const order = await this.drizzleService.db.query.orders.findFirst({
+      where: (order, { eq }) => eq(order.id, id),
+      with: {
+        items: true,
+        billingAddress: true,
+        shippingAddress: true,
+      },
+    });
+
+    if (!order) throw new Error('Order not found');
+
+    const orderItems = await Promise.all(
+      order.items.map(async (item) => {
+        const product = await this.productService.findOne(item.productId, {
+          select: { product: { id: true, name: true, price: true } },
+        });
+        return { ...product, quantity: item.quantity };
+      }),
+    );
+
+    const customer = order.userId
+      ? await this.drizzleService.db.query.users.findFirst({
+          where: (user, { eq }) => eq(user.id, order.userId),
+        })
+      : order.guestId
+        ? await this.drizzleService.db.query.guestsTable.findFirst({
+            where: (guest, { eq }) => eq(guest.id, order.guestId),
+          })
+        : null;
+
+    return {
+      billingAddress: order.billingAddress,
+      shippingAddress: order.shippingAddress,
+      customer,
+      orderItems,
+    };
   }
 
   async update(id: string, updateOrderDto: Partial<CreateOrderDto>) {
     const { addressIds, status } = updateOrderDto;
 
-    return await this.drizzleService.db
+    console.log('addressIdsUpdate:',addressIds);
+    
+    const orderId = await this.drizzleService.db
       .update(OrderTable)
       .set({
         billingAddressId: addressIds.at(0),
@@ -56,8 +98,12 @@ export class OrdersService {
         status,
       })
       .where(eq(OrderTable.id, id))
-      .returning({ id: OrderTable.id })
-      .then((res) => res[0]);
+      .returning({
+        id: OrderTable.id,
+      })
+      .then((res) => res[0].id);
+
+    return await this.findOne(orderId);
   }
 
   remove(id: number) {

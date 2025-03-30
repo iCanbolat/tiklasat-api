@@ -16,10 +16,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrderStatus } from 'src/database/schemas/orders.schema';
 import { PaymentCardType } from 'src/database/schemas/payments.schema';
 import { OrdersService } from 'src/orders/orders.service';
-
-// import Iyzipay from '@codingwithmanny/iyzipay-js';
-// import { CheckoutInitDto } from '../dto/init-checkout-form.dto';
-// import { IyzicoClient } from '@codingwithmanny/iyzipay-js/_dist/_types/types/config';
+import { IyzicoStatusEnum, IyzicoWebhookData } from '../interfaces/iyzico.type';
 
 @Injectable()
 export class IyzicoPaymentStrategy implements IProvider {
@@ -63,22 +60,34 @@ export class IyzicoPaymentStrategy implements IProvider {
 
   async handleWebhook(data: any, headers: any): Promise<any> {
     try {
-      console.log('Webhook data received:', data);
+      console.log('headers:', headers);
+      const webhookData: IyzicoWebhookData = JSON.parse(data.toString('utf-8'));
 
       // const isValid = this.verifySignature(data);
       // if (!isValid) {
       //   throw new Error('Invalid webhook signature');
       // }
 
-      switch (data.eventType) {
-        case 'payment.success':
-          console.log('Payment successful:', data);
+      switch (webhookData.status) {
+        case IyzicoStatusEnum.SUCCESS:
+          console.log('Webhook', this.orderInstanceDto);
+
+          this.eventEmitter.emit('payment.success', {
+            orderData: {
+              paymentId: webhookData.iyziPaymentId,
+              items: this.orderInstanceDto.items,
+              address: this.orderInstanceDto.address,
+              total: this.orderInstanceDto.total,
+              email: this.orderInstanceDto.buyer.email,
+            },
+          });
+          console.log('Payment successful:', webhookData.iyziPaymentId);
           break;
-        case 'payment.failure':
+        case IyzicoStatusEnum.FAILURE:
           console.log('Payment failed:', data);
           break;
         default:
-          console.log('Unhandled event type:', data.eventType);
+          console.log('Unhandled event type:', webhookData.status);
       }
 
       return { status: 'success' };
@@ -106,9 +115,9 @@ export class IyzicoPaymentStrategy implements IProvider {
     secretKey: string,
   ): boolean {
     const hash = crypto
-      .createHash('sha1')
+      .createHash('sha256')
       .update(JSON.stringify(body) + secretKey)
-      .digest('base64');
+      .digest('hex');
 
     return hash === signature;
   }
@@ -203,7 +212,11 @@ export class IyzicoPaymentStrategy implements IProvider {
         const product = await this.productService.findOne(item.id, {
           select: { product: { id: true, name: true, price: true } },
         });
-        return { ...product, quantity: item.quantity };
+        return {
+          ...product,
+          quantity: item.quantity,
+          price: product.product.price * item.quantity,
+        };
       }),
     );
 
