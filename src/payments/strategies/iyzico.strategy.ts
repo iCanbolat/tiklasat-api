@@ -70,8 +70,6 @@ export class IyzicoPaymentStrategy implements IProvider {
 
       switch (webhookData.status) {
         case IyzicoStatusEnum.SUCCESS:
-          console.log('Webhook', this.orderInstanceDto);
-
           this.eventEmitter.emit('payment.success', {
             orderData: {
               paymentId: webhookData.iyziPaymentId,
@@ -84,7 +82,16 @@ export class IyzicoPaymentStrategy implements IProvider {
           console.log('Payment successful:', webhookData.iyziPaymentId);
           break;
         case IyzicoStatusEnum.FAILURE:
-          console.log('Payment failed:', data);
+          
+          this.eventEmitter.emit('payment.failure', {
+            orderData: {
+              paymentId: webhookData.iyziPaymentId,
+              items: this.orderInstanceDto.items,
+              address: this.orderInstanceDto.address,
+              total: this.orderInstanceDto.total,
+              email: this.orderInstanceDto.buyer.email,
+            },
+          });
           break;
         default:
           console.log('Unhandled event type:', webhookData.status);

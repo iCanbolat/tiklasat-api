@@ -54,4 +54,17 @@ export class PaymentListener {
       this.logger.error(`Order creation failed: ${error.message}`);
     }
   }
+
+  @OnEvent('payment.failure')
+  async handlePaymentFailure({ orderData }: PaymentSuccessEvent) {
+    try {
+      const { paymentId } = orderData;
+
+      await this.paymentService.update(paymentId, PaymentStatus.Enum.FAILED);
+
+      this.logger.log(`Payment failed for order: ${paymentId}`);
+    } catch (error) {
+      this.logger.error(`Payment failure handling failed: ${error.message}`);
+    }
+  }
 }
