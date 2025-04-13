@@ -199,6 +199,12 @@ export class IyzicoPaymentStrategy implements IProvider {
       },
     );
 
+    return this.buildSessionResponse(result)
+  }
+
+  private async buildSessionResponse(
+    result: Iyzipay.CheckoutFormRetrieveResult,
+  ) {
     const basketItems: { id: string; quantity: number }[] = Object.values(
       result.itemTransactions.reduce((acc, item) => {
         if (!acc[item.itemId]) {
@@ -244,12 +250,14 @@ export class IyzicoPaymentStrategy implements IProvider {
 
   async getThreeDSPaymentResult(
     paymentId: string,
-  ): Promise<Iyzipay.PaymentResult> {
-    return new Promise((resolve, reject) => {
+  ): Promise<any> {
+    const result = await new Promise((resolve, reject) => {
       this.iyzipay.threedsPayment.create({ paymentId }, (err, result) => {
         if (err) reject(err);
         else resolve(result);
       });
     });
+
+    return this.buildSessionResponse(result as any);
   }
 }

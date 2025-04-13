@@ -2,6 +2,7 @@
 
 import { Address, Buyer, OrderItem } from 'src/common/types';
 import { PaymentCardType } from 'src/database/schemas/payments.schema';
+import { PaymentResult } from './iyzico.type';
 
 export interface IProvider {
   createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any>;

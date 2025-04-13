@@ -1,4 +1,6 @@
+import { PaymentCardType } from '@codingwithmanny/iyzipay-js/_dist/_types/types/models';
 import { OrderStatusType } from 'src/database/schemas/orders.schema';
+import { PaymentCard, SavedPaymentCard } from 'src/payments/interfaces/iyzico.type';
 import {
   IProduct,
   IProductAttributes,
@@ -53,4 +55,5 @@ export interface IOrderInstanceDto {
   buyer: Buyer;
   address: Address[];
   items: OrderItem[];
+  paymentCard?: PaymentCard | SavedPaymentCard;
 }

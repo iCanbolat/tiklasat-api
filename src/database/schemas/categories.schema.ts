@@ -1,6 +1,9 @@
 import {
+  boolean,
+  integer,
   pgTable,
   primaryKey,
+  text,
   timestamp,
   uuid,
   varchar,
@@ -13,7 +16,15 @@ export const CategoryTable = pgTable('categories', {
   parentId: uuid('parent_id'),
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
+  description: text('description'),
   imageUrl: varchar('image_url', { length: 1024 }),
+  banner: varchar('banner', { length: 1024 }),
+  isActive: boolean('is_active').default(true),
+  isFeatured: boolean('is_featured').default(false),
+  metaTitle: varchar('meta_title', { length: 60 }),
+  metaDescription: varchar('meta_description', { length: 160 }),
+  metaKeywords: varchar('meta_keywords', { length: 200 }),
+  displayOrder: integer('display_order').default(0),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at')
     .defaultNow()

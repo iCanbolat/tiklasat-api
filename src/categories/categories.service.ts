@@ -55,6 +55,7 @@ export class CategoriesService {
         productId,
         categoryId: category.id,
       }));
+      
       await this.drizzleService.db
         .insert(ProductCategoryTable)
         .values(links)
