@@ -7,30 +7,32 @@ import {
   ProductCategoryTable,
 } from 'src/database/schemas/categories.schema';
 import { and, eq, inArray, SQL, sql } from 'drizzle-orm';
- import { UpdateCategoryProductsDto } from './dto/update-category-products.dto';
+import { UpdateCategoryProductsDto } from './dto/update-category-products.dto';
 import slugify from 'slugify';
-import { ProductImageTable, ProductTable } from 'src/database/schemas/products.schema';
-import { FindOneCategoryResponseDto, ICategory, ICategoryTree, IProduct } from './interfaces';
+import {
+  ProductImageTable,
+  ProductTable,
+} from 'src/database/schemas/products.schema';
+import {
+  FindOneCategoryResponseDto,
+  ICategory,
+  ICategoryTree,
+  IProduct,
+} from './interfaces';
 
 @Injectable()
 export class CategoriesService {
   constructor(private readonly drizzleService: DrizzleService) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<ICategory> {
-    const { name, imageUrl, parentId } = createCategoryDto;
-
-    if (parentId) {
-      await this.ensureCategoryExists(parentId);
+    const params: typeof CategoryTable.$inferInsert = createCategoryDto;
+    if (params.parentId) {
+      await this.ensureCategoryExists(params.parentId);
     }
 
     const [newCategory] = await this.drizzleService.db
       .insert(CategoryTable)
-      .values({
-        name,
-        slug: slugify(name, { lower: true }),
-        imageUrl,
-        parentId,
-      })
+      .values(params)
       .returning();
 
     return newCategory;
@@ -55,7 +57,7 @@ export class CategoriesService {
         productId,
         categoryId: category.id,
       }));
-      
+
       await this.drizzleService.db
         .insert(ProductCategoryTable)
         .values(links)
@@ -102,7 +104,7 @@ export class CategoriesService {
     return this.buildCategoryTree(categories);
   }
 
-  async getCategory(categoryId: string) : Promise<FindOneCategoryResponseDto> {
+  async getCategory(categoryId: string): Promise<FindOneCategoryResponseDto> {
     const [category] = await this.drizzleService.db
       .select({
         category: CategoryTable,
@@ -157,9 +159,7 @@ export class CategoriesService {
       };
     }
 
-    const productIds = categoryWithProducts.products.map(
-      (link) => link.id,
-    );
+    const productIds = categoryWithProducts.products.map((link) => link.id);
 
     await this.drizzleService.db
       .delete(ProductTable)
@@ -175,24 +175,23 @@ export class CategoriesService {
     };
   }
 
-  async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto): Promise<ICategory> {
-    const { imageUrl, name, parentId } = updateCategoryDto;
+  async updateCategory(
+    id: string,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<ICategory> {
+    const params: Partial<typeof CategoryTable.$inferInsert> =
+      updateCategoryDto;
 
     await this.ensureCategoryExists(id);
 
     // Ensure the new parentId exists if provided
-    if (parentId) {
-      await this.ensureCategoryExists(parentId);
+    if (params.parentId) {
+      await this.ensureCategoryExists(params.parentId);
     }
 
     const [updatedCategory] = await this.drizzleService.db
       .update(CategoryTable)
-      .set({
-        imageUrl,
-        name,
-        slug: slugify(name, { lower: true }),
-        parentId: parentId || null,
-      })
+      .set(params)
       .where(eq(CategoryTable.id, id))
       .returning();
 
@@ -232,6 +231,10 @@ export class CategoriesService {
     return await this.create({
       name: categoryName,
       imageUrl: '',
+      slug,
+      isActive: true,
+      isFeatured: false,
+      displayOrder: 0,
     });
   }
 
