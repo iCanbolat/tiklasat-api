@@ -21,10 +21,10 @@ export const UserTable = pgTable('users', {
   password: text('password'),
   phone: varchar('phone', { length: 50 }),
   role: UserRoleStatusEnum('role').default(UserRole.enum.ADMIN).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at')
-    .defaultNow()
-    .$onUpdateFn(() => sql`now()`),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).$onUpdate(
+    () => new Date(),
+  ),
 });
 
 export type SelectUser = typeof UserTable.$inferSelect;

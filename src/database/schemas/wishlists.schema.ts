@@ -11,10 +11,16 @@ export const WishlistTable = pgTable('wishlist', {
   productId: uuid('product_id').references(() => ProductTable.id, {
     onDelete: 'cascade',
   }),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
 });
 
 export const wishListRelations = relations(WishlistTable, ({ one, many }) => ({
-  customer: one(CustomerTable, { fields: [WishlistTable.customerId], references: [CustomerTable.userId] }),
-  product: one(ProductTable, { fields: [WishlistTable.productId], references: [ProductTable.id] }),
+  customer: one(CustomerTable, {
+    fields: [WishlistTable.customerId],
+    references: [CustomerTable.userId],
+  }),
+  product: one(ProductTable, {
+    fields: [WishlistTable.productId],
+    references: [ProductTable.id],
+  }),
 }));

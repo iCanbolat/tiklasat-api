@@ -30,7 +30,7 @@ export const CustomerTable = pgTable('customer_details', {
     (): AnyPgColumn => AddressTable.id,
     { onDelete: 'set null' },
   ),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
 });
 
 export const customerRelations = relations(CustomerTable, ({ one, many }) => ({

@@ -52,7 +52,7 @@ export const PaymentTable = pgTable('payments', {
   status: PaymentStatusEnum('payment_status')
     .default(PaymentStatus.Enum.PENDING)
     .notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
 });
 
 export const paymentRelations = relations(PaymentTable, ({ one }) => ({

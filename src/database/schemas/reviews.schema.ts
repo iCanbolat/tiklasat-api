@@ -23,12 +23,15 @@ export const ReviewTable = pgTable('reviews', {
   userId: uuid('user_id').references(() => UserTable.id, {
     onDelete: 'cascade',
   }),
-  productVariantId: uuid('product_variant_id').references(() => ProductVariantTable.id, {
-    onDelete: 'cascade',
-  }),
+  productVariantId: uuid('product_variant_id').references(
+    () => ProductVariantTable.id,
+    {
+      onDelete: 'cascade',
+    },
+  ),
   rating: integer('rating').notNull(),
   comment: text('comment'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
 });
 
 export const reviewRelations = relations(ReviewTable, ({ one }) => ({

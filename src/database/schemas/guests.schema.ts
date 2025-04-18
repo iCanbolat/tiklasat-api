@@ -5,5 +5,4 @@ export const GuestTable = pgTable('guests', {
   name: varchar('name'),
   email: varchar('email', { length: 255 }).unique().notNull(),
   phone: varchar('phone', { length: 50 }),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+  createdAt: timestamp('created_at', { mode: "date" }).defaultNow(),});

@@ -25,10 +25,8 @@ export const CategoryTable = pgTable('categories', {
   metaDescription: varchar('meta_description', { length: 160 }),
   metaKeywords: varchar('meta_keywords', { length: 200 }),
   displayOrder: integer('display_order').default(0),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at')
-    .defaultNow()
-    .$onUpdateFn(() => sql`now()`),
+  createdAt: timestamp('created_at', { mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).$onUpdate(() => new Date()),
 });
 
 export const ProductCategoryTable = pgTable(

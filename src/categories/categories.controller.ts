@@ -71,7 +71,7 @@ export class CategoriesController {
   @Patch(':id')
   @HttpCode(200)
   async updateCategory(
-    @Param() id: string,
+    @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
     return await this.categoriesService.updateCategory(id, updateCategoryDto);
