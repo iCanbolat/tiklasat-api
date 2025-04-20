@@ -249,7 +249,7 @@ export class CategoriesService {
 
     categories.push(query);
 
-    if (query.parentId) {
+    if (query?.parentId) {
       this.getParentCategories(query.parentId);
     }
 
