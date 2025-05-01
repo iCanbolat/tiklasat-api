@@ -7,6 +7,13 @@ export interface ICategory {
   imageUrl?: string;
   parentId?: string;
   productsCount?: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  banner?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  displayOrder: number;
 }
 
 // export interface IProduct {

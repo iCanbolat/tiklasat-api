@@ -105,6 +105,9 @@ export class CategoriesService {
         slug: CategoryTable.slug,
         imageUrl: CategoryTable.imageUrl,
         parentId: CategoryTable.parentId,
+        isActive: CategoryTable.isActive,
+        isFeatured: CategoryTable.isFeatured,
+        displayOrder: CategoryTable.displayOrder,
         productsCount: sql<number>`COUNT(${ProductCategoryTable.productId})`.as(
           'productsCount',
         ),
@@ -228,7 +231,7 @@ export class CategoriesService {
   }
 
   private buildCategoryTree(
-    categories: any[],
+    categories: ICategory[],
     parentId: string | null = null,
   ): ICategoryTree[] {
     return categories
@@ -238,7 +241,10 @@ export class CategoriesService {
         name: category.name,
         slug: category.slug,
         imageUrl: category.imageUrl,
-        productsCount: category.productsCount ?? 0, // ✅ direct from SQL
+        productsCount: category.productsCount ?? 0,
+        isActive: category.isActive,
+        isFeatured: category.isFeatured,
+        displayOrder: category.displayOrder,
         subcategories: this.buildCategoryTree(categories, category.id),
       }));
   }
