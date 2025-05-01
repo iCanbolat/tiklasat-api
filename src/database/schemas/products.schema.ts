@@ -28,6 +28,7 @@ export const ProductTable = pgTable('products', {
     .notNull()
     .$type<number>(),
   slug: varchar('slug', { length: 255 }).notNull(),
+  sku: varchar('sku', { length: 255 }),
   currency: CurrencyEnumCol('currency').default('USD'),
   stockQuantity: integer('stock_quantity').default(0).notNull(),
   isFeatured: boolean('is_featured').default(false).notNull(),

@@ -17,7 +17,7 @@ import {
   FindOneCategoryResponseDto,
   ICategory,
   ICategoryTree,
-  IProduct,
+  // IProduct,
 } from './interfaces';
 
 @Injectable()
@@ -98,9 +98,26 @@ export class CategoriesService {
   }
 
   async getAllCategories(): Promise<ICategoryTree[]> {
-    const categories = await this.drizzleService.db.query.categories.findMany({
-      orderBy: (categories, { desc }) => [desc(categories.createdAt)],
-    });
+    const categories = await this.drizzleService.db
+      .select({
+        id: CategoryTable.id,
+        name: CategoryTable.name,
+        slug: CategoryTable.slug,
+        imageUrl: CategoryTable.imageUrl,
+        parentId: CategoryTable.parentId,
+        productsCount: sql<number>`COUNT(${ProductCategoryTable.productId})`.as(
+          'productsCount',
+        ),
+      })
+      .from(CategoryTable)
+      .leftJoin(
+        ProductCategoryTable,
+        eq(ProductCategoryTable.categoryId, CategoryTable.id),
+      )
+      .groupBy(CategoryTable.id)
+      .orderBy(sql`${CategoryTable.createdAt} DESC`)
+      .execute();
+
     return this.buildCategoryTree(categories);
   }
 
@@ -108,7 +125,7 @@ export class CategoriesService {
     const [category] = await this.drizzleService.db
       .select({
         category: CategoryTable,
-        products: this.getAggregatedProducts() as SQL.Aliased<IProduct[]>,
+        products: this.getAggregatedProducts() as SQL.Aliased<any[]>,
       })
       .from(CategoryTable)
       .leftJoin(
@@ -159,11 +176,13 @@ export class CategoriesService {
       };
     }
 
-    const productIds = categoryWithProducts.products.map((link) => link.id);
+    const productIds = categoryWithProducts.products?.map((link) => link.id);
 
-    await this.drizzleService.db
-      .delete(ProductTable)
-      .where(inArray(ProductTable.id, productIds));
+    if (productIds?.length > 0) {
+      await this.drizzleService.db
+        .delete(ProductTable)
+        .where(inArray(ProductTable.id, productIds));
+    }
 
     await this.drizzleService.db
       .delete(CategoryTable)
@@ -208,11 +227,18 @@ export class CategoriesService {
     }
   }
 
-  private buildCategoryTree(categories: any[], parentId: string | null = null) {
+  private buildCategoryTree(
+    categories: any[],
+    parentId: string | null = null,
+  ): ICategoryTree[] {
     return categories
       .filter((category) => category.parentId === parentId)
       .map((category) => ({
-        ...category,
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        imageUrl: category.imageUrl,
+        productsCount: category.productsCount ?? 0, // ✅ direct from SQL
         subcategories: this.buildCategoryTree(categories, category.id),
       }));
   }
@@ -309,7 +335,7 @@ export class CategoriesService {
 
   private getAggregatedProducts() {
     return sql`array_agg(
-        jsonb_build_object('id', ${ProductTable.id}, 'name', ${ProductTable.name}, 'imageUrl', ${ProductImageTable.url})
+        jsonb_build_object('product', ${ProductTable}, 'name', ${ProductTable.name}, 'imageUrl', ${ProductImageTable.url})
         ) FILTER (WHERE ${ProductTable.id} IS NOT NULL)`.as('products');
   }
 }
