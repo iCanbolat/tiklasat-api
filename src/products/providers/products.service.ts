@@ -11,7 +11,7 @@ import {
   ProductImageTable,
   ProductVariantTable,
 } from 'src/database/schemas/products.schema';
-import { and, eq, gte, inArray, lte, SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, sql, SQL } from 'drizzle-orm';
 import slugify from 'slugify';
 import { CategoriesService } from 'src/categories/categories.service';
 import { DrizzleService } from 'src/database/drizzle.service';
@@ -229,14 +229,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         category: this.getCategorySelect(),
       })
       .from(ProductTable)
-      .groupBy(
-        ProductTable.id,
-        ProductCategoryTable.productId,
-        ProductCategoryTable.categoryId,
-        CategoryTable.id,
-        ProductVariantTable.id,
-        ProductImageTable.id,
-      )
+      .groupBy(ProductTable.id)
       .$dynamic();
 
     query = this.applyPaginateJoins(query);
@@ -381,13 +374,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     return `This action removed${id} product and its variants`;
   }
-
-  // private getAggregatedImages() {
-  //   return sql`array_agg(
-  //     jsonb_build_object('id', ${ProductImageTable.id}, 'url', ${ProductImageTable.url})
-  //     ) FILTER (WHERE ${ProductImageTable.id} IS NOT NULL)`.as('images');
-  // }
-
+  
   private mapSelectFields<T extends PgTable<any>>(
     table: T,
     selectFields?: Partial<Record<keyof IProduct, boolean>>,
@@ -403,18 +390,47 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     );
   }
 
-  private getImageSelect = () => ({
-    url: ProductImageTable.url,
-  });
+  private getImageSelect = () => {
+    return sql`
+    COALESCE(
+      jsonb_agg(
+        DISTINCT jsonb_build_object(
+          'id', ${ProductImageTable.id},
+          'url', ${ProductImageTable.url}
+        )
+      ) FILTER (WHERE ${ProductImageTable.id} IS NOT NULL),
+      '[]'
+    )
+  `.as('images');
+  };
 
-  private getCategorySelect = () => ({
-    name: CategoryTable.name,
-    imageUrl: CategoryTable.imageUrl,
-    slug: CategoryTable.slug,
-  });
+  private getCategorySelect = () => {
+    return sql`
+    COALESCE(
+      jsonb_agg(
+        DISTINCT jsonb_build_object(
+          'id', ${CategoryTable.id},
+          'name', ${CategoryTable.name},
+          'slug', ${CategoryTable.slug}
+        )
+      ) FILTER (WHERE ${CategoryTable.id} IS NOT NULL),
+      '{}'
+    )
+  `.as('category');
+  };
 
-  private getAttributeSelect = () => ({
-    variantType: ProductVariantTable.variantType,
-    value: ProductVariantTable.value,
-  });
+  private getAttributeSelect = () => {
+    return sql`
+    COALESCE(
+      jsonb_agg(
+        DISTINCT jsonb_build_object(
+          'id', ${ProductVariantTable.id},
+          'variantType', ${ProductVariantTable.variantType},
+          'value', ${ProductVariantTable.value}
+        )
+      ) FILTER (WHERE ${ProductVariantTable.id} IS NOT NULL),
+      '[]'
+    )
+  `.as('attributes');
+  };
 }

@@ -1,9 +1,12 @@
+import { ICategory } from 'src/categories/interfaces';
+
 export interface IProduct {
   id: string;
   name: string;
   slug: string;
   price: number;
   currency: string;
+  sku: string;
   isFeatured: boolean;
   isVariant: boolean;
   parentId: string;
@@ -26,6 +29,7 @@ export type ProductServiceResponse = {
   product: IProduct;
   attributes?: IProductAttributes[];
   images?: IProductImages[];
+  category?: ICategory;
 };
 
 export type ProductResponseDto = {
