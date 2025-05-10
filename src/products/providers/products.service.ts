@@ -26,6 +26,7 @@ import {
 } from '../interfaces';
 import { PaginatedResults } from 'src/common/types';
 import { PgTable } from 'drizzle-orm/pg-core';
+import { ICategory } from 'src/categories/interfaces';
 
 @Injectable()
 export class ProductsService extends AbstractCrudService<typeof ProductTable> {
@@ -71,6 +72,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         ...parentProduct.product,
         attributes: parentProduct.attributes ?? [],
         images: parentProduct.images ?? [],
+        category: parentProduct.category,
       },
       variants: variantProducts,
     };
@@ -85,6 +87,9 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       isFeatured,
       name,
       price,
+      status,
+      sku,
+      stockUnderThreshold,
       currency,
       description,
       stockQuantity,
@@ -101,6 +106,9 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         isFeatured,
         price,
         currency,
+        status,
+        sku,
+        stockUnderThreshold,
         description,
         stockQuantity,
         isVariant: parentId ? true : isVariant,
@@ -136,7 +144,6 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return { product, attributes, images };
   }
 
-  //Refactor
   async findOne(
     productId: string,
     options?: {
@@ -144,30 +151,51 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       select?: { product?: Partial<Record<keyof IProduct, boolean>> };
     },
   ): Promise<ProductResponseDto> {
-    const [product] = await this.findOneProduct(
+    const [response] = await this.findOneProduct(
       productId,
       false,
       options?.select ?? {},
     );
 
-    if (!product) {
+    if (!response) {
       throw new Error(`Product with id ${productId} not found.`);
     }
+
+    const relatedProducts = await this.drizzleService.db.query.relatedProducts
+      .findMany({
+        where: (relatedProducts) =>
+          eq(relatedProducts.productId, response.product.id),
+        with: {
+          targetProduct: {
+            columns: {
+              id: true,
+              name: true,
+              slug: true,
+              price: true,
+            },
+          },
+        },
+      })
+      .then((rows) => rows.map((row) => row.targetProduct));
+
+    console.log('relatedProducts', relatedProducts);
 
     if (options?.includeVariant) {
       const variants = await this.findOneProduct(productId, true);
 
       const structuredResponse = {
         product: {
-          ...product.product,
-          attributes: product.attributes ?? [],
-          images: product.images ?? [],
+          ...response.product,
+          attributes: response.attributes ?? [],
+          images: response.images ?? [],
+          category: response.category ?? {},
         },
         variants: variants.map((row) => ({
           ...row.product,
           attributes: row.attributes ?? [],
           images: row.images ?? [],
         })),
+        relatedProducts,
       };
 
       return structuredResponse;
@@ -175,10 +203,12 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     return {
       product: {
-        ...product.product,
-        attributes: product.attributes ?? [],
-        images: product.images ?? [],
+        ...response.product,
+        attributes: response.attributes ?? [],
+        images: response.images ?? [],
+        category: response.category ?? {},
       },
+      relatedProducts,
     };
   }
 
@@ -201,6 +231,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         attributes: this.getAttributeSelect() as unknown as SQL.Aliased<
           IProductAttributes[]
         >,
+        category: this.getCategorySelect() as unknown as SQL.Aliased<ICategory>,
       })
       .from(ProductTable)
       .leftJoin(
@@ -229,28 +260,24 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         category: this.getCategorySelect(),
       })
       .from(ProductTable)
+      .leftJoin(
+        ProductImageTable,
+        eq(ProductImageTable.productId, ProductTable.id),
+      )
+      .leftJoin(
+        ProductVariantTable,
+        eq(ProductVariantTable.productId, ProductTable.id),
+      )
       .groupBy(ProductTable.id)
       .$dynamic();
-
-    query = this.applyPaginateJoins(query);
 
     const paginatedResults = await this.getPaginatedResult(
       getProductsDto,
       query,
     );
 
-    const structuredData: FindAllProductsReturnDto[] =
-      paginatedResults.data.map((row) => ({
-        product: {
-          ...row.product,
-          attributes: row.attributes ?? [],
-          images: row.images ?? [],
-          category: row.category ?? [],
-        },
-      }));
-
     return {
-      data: structuredData,
+      data: paginatedResults.data,
       pagination: paginatedResults.pagination,
     };
   }
@@ -279,28 +306,6 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         );
       });
     }
-
-    return query;
-  }
-
-  protected applyPaginateJoins(query: any) {
-    query = query
-      .leftJoin(
-        ProductImageTable,
-        eq(ProductImageTable.productId, ProductTable.id),
-      )
-      .leftJoin(
-        ProductVariantTable,
-        eq(ProductVariantTable.productId, ProductTable.id),
-      )
-      .leftJoin(
-        ProductCategoryTable,
-        eq(ProductCategoryTable.productId, ProductTable.id),
-      )
-      .leftJoin(
-        CategoryTable,
-        eq(ProductCategoryTable.categoryId, CategoryTable.id),
-      );
 
     return query;
   }
@@ -353,7 +358,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   }
 
   async delete(id: string) {
-    const product = await this.findOne(id);
+    const product = await this.findOne(id, { includeVariant: true });
 
     if (product.variants.length > 0) {
       await this.drizzleService.db
@@ -374,7 +379,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     return `This action removed${id} product and its variants`;
   }
-  
+
   private mapSelectFields<T extends PgTable<any>>(
     table: T,
     selectFields?: Partial<Record<keyof IProduct, boolean>>,
@@ -406,17 +411,27 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
   private getCategorySelect = () => {
     return sql`
-    COALESCE(
-      jsonb_agg(
-        DISTINCT jsonb_build_object(
-          'id', ${CategoryTable.id},
-          'name', ${CategoryTable.name},
-          'slug', ${CategoryTable.slug}
-        )
-      ) FILTER (WHERE ${CategoryTable.id} IS NOT NULL),
-      '{}'
-    )
-  `.as('category');
+      COALESCE(
+        (
+          SELECT jsonb_build_object(
+            'id', ${CategoryTable.id},
+            'name', ${CategoryTable.name},
+            'slug', ${CategoryTable.slug}
+          )
+          FROM ${CategoryTable}
+          LEFT JOIN ${ProductCategoryTable}
+            ON ${ProductCategoryTable.categoryId} = ${CategoryTable.id}
+          WHERE ${ProductCategoryTable.productId} = ${ProductTable.id}
+            AND NOT EXISTS (
+              SELECT 1
+              FROM ${CategoryTable} as child
+              WHERE child.parent_id = ${CategoryTable.id}
+            )
+          LIMIT 1
+        ),
+        '{}'::jsonb
+      )
+    `.as('category');
   };
 
   private getAttributeSelect = () => {

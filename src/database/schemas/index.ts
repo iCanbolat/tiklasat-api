@@ -17,6 +17,8 @@ import {
   ProductTable,
   productVariantRelations,
   ProductVariantTable,
+  relatedProductRelations,
+  RelatedProductTable,
 } from './products.schema';
 import { reviewRelations, ReviewTable } from './reviews.schema';
 import { UserTable } from './users.schema';
@@ -47,6 +49,8 @@ export const databaseSchema = {
   guestsTable: GuestTable,
   wishListRelations: wishListRelations,
   customerDetails: CustomerTable,
+  relatedProducts: RelatedProductTable,
+  relatedProductRelations: relatedProductRelations,
   customerRelations: customerRelations,
   addressRelations: addressRelations,
   productsToCategoriesRelations: productsToCategoriesRelations,

@@ -14,6 +14,8 @@ import {
 import {
   CurrencyEnum,
   CurrencyType,
+  ProductStatusEnum,
+  ProductStatusType,
 } from 'src/database/schemas/products.schema';
 
 export class AttributeDto {
@@ -46,6 +48,22 @@ export class CreateProductDto {
   @IsString()
   parentId?: string;
 
+  @IsOptional()
+  @IsString()
+  metaTitle?: string;
+  
+  @IsOptional()
+  @IsString()
+  metaDescription: string;
+
+  @IsOptional()
+  @IsString()
+  metaKeywords: string;
+
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
@@ -54,15 +72,24 @@ export class CreateProductDto {
   @IsOptional()
   currency?: CurrencyType;
 
+  @IsEnum(ProductStatusEnum.Enum)
+  @IsOptional()
+  status?: ProductStatusType;
+
   @IsOptional()
   @IsInt()
   @Min(0)
   stockQuantity?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  stockUnderThreshold?: number;
+
+  @IsOptional()
   @IsBoolean()
   isFeatured?: boolean;
-  
+
   @IsBoolean()
   @IsOptional()
   isVariant: boolean;
