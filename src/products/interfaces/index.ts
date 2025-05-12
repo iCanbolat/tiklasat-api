@@ -6,6 +6,7 @@ export interface IProduct {
   name: string;
   slug: string;
   price: number;
+  cost: number;
   currency: string;
   sku: string;
   status: ProductStatusType;
@@ -43,7 +44,7 @@ export type ProductResponseDto = {
   product: IProduct & {
     attributes: IProductAttributes[];
     images: IProductImages[];
-    category?: ICategory | {};
+    category?: ICategory;
   };
   variants?: IProduct[];
   relatedProducts?: IRelatedProduct[];

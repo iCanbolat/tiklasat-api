@@ -38,6 +38,7 @@ export const ProductTable = pgTable('products', {
   price: decimal('price', { precision: 10, scale: 2 })
     .notNull()
     .$type<number>(),
+  cost: decimal('cost', { precision: 10, scale: 2 }).$type<number>(),
   slug: varchar('slug', { length: 255 }).notNull(),
   sku: varchar('sku', { length: 255 }),
   currency: CurrencyEnumCol('currency').default('USD'),

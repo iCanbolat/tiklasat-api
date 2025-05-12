@@ -151,7 +151,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       select?: { product?: Partial<Record<keyof IProduct, boolean>> };
     },
   ): Promise<ProductResponseDto> {
-    const [response] = await this.findOneProduct(
+    const response = await this.findOneProduct(
       productId,
       false,
       options?.select ?? {},
@@ -178,8 +178,6 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       })
       .then((rows) => rows.map((row) => row.targetProduct));
 
-    console.log('relatedProducts', relatedProducts);
-
     if (options?.includeVariant) {
       const variants = await this.findOneProduct(productId, true);
 
@@ -188,9 +186,9 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
           ...response.product,
           attributes: response.attributes ?? [],
           images: response.images ?? [],
-          category: response.category ?? {},
+          category: response.category,
         },
-        variants: variants.map((row) => ({
+        variants: variants?.map((row) => ({
           ...row.product,
           attributes: row.attributes ?? [],
           images: row.images ?? [],
@@ -206,7 +204,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         ...response.product,
         attributes: response.attributes ?? [],
         images: response.images ?? [],
-        category: response.category ?? {},
+        category: response.category,
       },
       relatedProducts,
     };
@@ -216,13 +214,13 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     productId: string,
     isVariant?: boolean,
     select: { product?: Partial<Record<keyof IProduct, boolean>> } = {},
-  ): Promise<ProductServiceResponse[]> {
+  ): Promise<any> {
     const selectedProductFields = this.mapSelectFields(
       ProductTable,
       select.product,
     );
 
-    const product = await this.drizzleService.db
+    const [product] = await this.drizzleService.db
       .select({
         product: selectedProductFields as unknown as SQL.Aliased<IProduct>,
         images: this.getImageSelect() as unknown as SQL.Aliased<
@@ -245,6 +243,8 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       .where(eq(isVariant ? ProductTable.parentId : ProductTable.id, productId))
       .groupBy(ProductTable.id, ProductImageTable.id, ProductVariantTable.id)
       .execute();
+
+    console.log(product);
 
     return product;
   }
@@ -411,27 +411,22 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
   private getCategorySelect = () => {
     return sql`
-      COALESCE(
-        (
-          SELECT jsonb_build_object(
-            'id', ${CategoryTable.id},
-            'name', ${CategoryTable.name},
-            'slug', ${CategoryTable.slug}
-          )
-          FROM ${CategoryTable}
-          LEFT JOIN ${ProductCategoryTable}
-            ON ${ProductCategoryTable.categoryId} = ${CategoryTable.id}
-          WHERE ${ProductCategoryTable.productId} = ${ProductTable.id}
-            AND NOT EXISTS (
-              SELECT 1
-              FROM ${CategoryTable} as child
-              WHERE child.parent_id = ${CategoryTable.id}
-            )
-          LIMIT 1
-        ),
-        '{}'::jsonb
-      )
-    `.as('category');
+    COALESCE(
+      (
+        SELECT jsonb_build_object(
+          'id', c.id,
+          'name', c.name,
+          'slug', c.slug
+        )
+        FROM ${CategoryTable} c
+        JOIN ${ProductCategoryTable} pc
+          ON pc.category_id = c.id
+        WHERE pc.product_id = ${ProductTable.id}
+        LIMIT 1
+      ),
+      '{}'::jsonb
+    )
+  `.as('category');
   };
 
   private getAttributeSelect = () => {
