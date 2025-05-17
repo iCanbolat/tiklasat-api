@@ -72,6 +72,8 @@ export const ProductImageTable = pgTable('product_images', {
     onDelete: 'cascade',
   }),
   url: varchar('url', { length: 1024 }).notNull(),
+  displayOrder: integer('display_order'),
+  cloudinaryId: varchar('cloudinary_id'),
 });
 
 export const RelatedProductTable = pgTable(

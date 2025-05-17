@@ -8,6 +8,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MailModule } from './mail/mail.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import paymentConfig from './payments/config/payment.config';
 
 @Module({
@@ -44,6 +45,7 @@ import paymentConfig from './payments/config/payment.config';
     OrdersModule,
     PaymentsModule,
     MailModule,
+    CloudinaryModule,
   ],
   controllers: [],
   providers: [],

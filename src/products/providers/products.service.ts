@@ -128,6 +128,8 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         images.map((image) => ({
           productId: product.id,
           url: image.url,
+          displayOrder: image.displayOrder,
+          cloudinaryId: image.cloudinaryId,
         })),
       );
     }
@@ -241,10 +243,8 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         eq(ProductVariantTable.productId, ProductTable.id),
       )
       .where(eq(isVariant ? ProductTable.parentId : ProductTable.id, productId))
-      .groupBy(ProductTable.id, ProductImageTable.id, ProductVariantTable.id)
+      .groupBy(ProductTable.id)
       .execute();
-
-    console.log(product);
 
     return product;
   }
@@ -398,12 +398,19 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   private getImageSelect = () => {
     return sql`
     COALESCE(
-      jsonb_agg(
-        DISTINCT jsonb_build_object(
-          'id', ${ProductImageTable.id},
-          'url', ${ProductImageTable.url}
-        )
-      ) FILTER (WHERE ${ProductImageTable.id} IS NOT NULL),
+      (
+        SELECT jsonb_agg(image_obj ORDER BY image_obj->>'displayOrder')
+        FROM (
+          SELECT jsonb_build_object(
+            'id', ${ProductImageTable.id},
+            'url', ${ProductImageTable.url},
+            'cloudinaryId', ${ProductImageTable.cloudinaryId},
+            'displayOrder', ${ProductImageTable.displayOrder}
+          ) AS image_obj
+          FROM ${ProductImageTable}
+          WHERE ${ProductImageTable.productId} = ${ProductTable.id}
+        ) images
+      ),
       '[]'
     )
   `.as('images');

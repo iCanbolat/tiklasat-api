@@ -29,6 +29,12 @@ export class AttributeDto {
 export class ImageDto {
   @IsString()
   url: string;
+
+  @IsString()
+  cloudinaryId: string;
+
+  @IsString()
+  displayOrder: number;
 }
 
 export class CreateProductDto {
@@ -51,7 +57,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   metaTitle?: string;
-  
+
   @IsOptional()
   @IsString()
   metaDescription: string;
