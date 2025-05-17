@@ -43,6 +43,8 @@ export const ProductTable = pgTable('products', {
   sku: varchar('sku', { length: 255 }),
   currency: CurrencyEnumCol('currency').default('USD'),
   stockQuantity: integer('stock_quantity').default(0).notNull(),
+  manageStock: boolean('manage_stock').default(true),
+  allowBackorders: boolean('allow_backorders').default(false),
   stockUnderThreshold: integer('stock_under_threshold').default(0),
   status: ProductStatusCol('status').default('ACTIVE'),
   isFeatured: boolean('is_featured').default(false).notNull(),
