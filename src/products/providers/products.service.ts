@@ -27,12 +27,14 @@ import {
 import { PaginatedResults } from 'src/common/types';
 import { PgTable } from 'drizzle-orm/pg-core';
 import { ICategory } from 'src/categories/interfaces';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   constructor(
     drizzleService: DrizzleService,
     private readonly categoryService: CategoriesService,
+    private readonly cloudinaryImageService: CloudinaryService,
   ) {
     super(drizzleService, ProductTable);
   }
@@ -153,7 +155,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       select?: { product?: Partial<Record<keyof IProduct, boolean>> };
     },
   ): Promise<ProductResponseDto> {
-    const response = await this.findOneProduct(
+    const [response] = await this.findOneProduct(
       productId,
       false,
       options?.select ?? {},
@@ -181,7 +183,15 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       .then((rows) => rows.map((row) => row.targetProduct));
 
     if (options?.includeVariant) {
-      const variants = await this.findOneProduct(productId, true);
+      const variants = await this.findOneProduct(productId, true, {
+        product: {
+          id: true,
+          name: true,
+          sku: true,
+          price: true,
+          stockQuantity: true,
+        },
+      });
 
       const structuredResponse = {
         product: {
@@ -216,13 +226,13 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     productId: string,
     isVariant?: boolean,
     select: { product?: Partial<Record<keyof IProduct, boolean>> } = {},
-  ): Promise<any> {
+  ): Promise<ProductServiceResponse[]> {
     const selectedProductFields = this.mapSelectFields(
       ProductTable,
       select.product,
     );
 
-    const [product] = await this.drizzleService.db
+    const product = await this.drizzleService.db
       .select({
         product: selectedProductFields as unknown as SQL.Aliased<IProduct>,
         images: this.getImageSelect() as unknown as SQL.Aliased<

@@ -2,11 +2,10 @@ import { Module } from '@nestjs/common';
 import { ProductsService } from './providers/products.service';
 import { ProductsController } from './controllers/products.controller';
 import { CategoriesModule } from 'src/categories/categories.module';
-// import { ProductVariantService } from './providers/product-variant.service';
-// import { ProductVariantController } from './controllers/product-variant.controller';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
-  imports: [CategoriesModule],
+  imports: [CategoriesModule, CloudinaryModule],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

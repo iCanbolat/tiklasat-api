@@ -60,11 +60,11 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
-  metaDescription: string;
+  metaDescription?: string;
 
   @IsOptional()
   @IsString()
-  metaKeywords: string;
+  metaKeywords?: string;
 
   @IsOptional()
   @IsString()
@@ -94,10 +94,10 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsBoolean()
-  isFeatured?: boolean;
+  isFeatured: boolean = false;
 
-  @IsBoolean()
   @IsOptional()
+  @IsBoolean()
   isVariant: boolean;
 
   @IsOptional()
@@ -118,3 +118,14 @@ export class CreateProductDto {
   @Type(() => CreateProductDto)
   variants?: CreateProductDto[];
 }
+
+// export class CreateProductWithImagesDto extends CreateProductDto {
+//   @IsArray()
+//   @IsOptional()
+//   images?: Express.Multer.File[];
+
+//   @IsArray()
+//   @IsOptional()
+//   @IsNumber({}, { each: true })
+//   displayOrders?: number[];
+// }
