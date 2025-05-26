@@ -1,7 +1,12 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
+import { eq } from 'drizzle-orm';
+import { PgTransaction } from 'drizzle-orm/pg-core';
 import { DrizzleService } from 'src/database/drizzle.service';
-import { ProductImageTable } from 'src/database/schemas/products.schema';
+import {
+  ProductImageTable,
+  ProductTable,
+} from 'src/database/schemas/products.schema';
 import { Readable } from 'stream';
 
 @Injectable()
@@ -16,50 +21,60 @@ export class CloudinaryService {
     productId: string,
     displayOrder: number,
     folder?: string,
+    tx?: PgTransaction<any, any, any>,
   ): Promise<{ url: string; cloudinaryId: string; displayOrder: number }> {
-    const product = await this.drizzleService.db.query.products.findFirst({
-      where: (products, { eq }) => eq(products.id, productId),
-    });
+    const db = tx || this.drizzleService.db;
+
+    const [product] = await db
+      .select()
+      .from(ProductTable)
+      .where(eq(ProductTable.id, productId))
+      .limit(1)
+      .execute();
 
     if (!product) {
       throw new BadRequestException('Product not found');
     }
 
-    const uploadResult: { url: string; public_id: string } = await new Promise(
-      (resolve, reject) => {
-        const uploadOptions: any = { resource_type: 'auto' };
-        if (folder) uploadOptions.folder = folder;
+    return new Promise((resolve, reject) => {
+      const uploadOptions: any = {
+        resource_type: 'auto',
+        folder: folder ? `${folder}/${productId}` : undefined,
+      };
 
-        const uploadStream = this.cloudinaryClient.uploader.upload_stream(
-          uploadOptions,
-          (error, result) => {
-            if (error) return reject(error);
+      const uploadStream = this.cloudinaryClient.uploader.upload_stream(
+        uploadOptions,
+        async (error, result) => {
+          if (error) return reject(error);
+
+          try {
+            const [image] = await db
+              .insert(ProductImageTable)
+              .values({
+                url: result.secure_url,
+                cloudinaryId: result.public_id,
+                displayOrder,
+                productId,
+              })
+              .returning();
+
             resolve({
-              url: result.secure_url,
-              public_id: result.public_id,
+              url: image.url,
+              cloudinaryId: image.cloudinaryId,
+              displayOrder: image.displayOrder,
             });
-          },
-        );
+          } catch (dbError) {
+            await this.cloudinaryClient.uploader.destroy(result.public_id);
+            reject(dbError);
+          }
+        },
+      );
 
-        const bufferStream = new Readable();
-        bufferStream.push(file.buffer);
-        bufferStream.push(null);
-        bufferStream.pipe(uploadStream);
-      },
-    );
-
-    await this.drizzleService.db.insert(ProductImageTable).values({
-      url: uploadResult.url,
-      cloudinaryId: uploadResult.public_id,
-      displayOrder,
-      productId,
+      const bufferStream = new Readable();
+      bufferStream.push(file.buffer);
+      bufferStream.push(null);
+      bufferStream.pipe(uploadStream);
     });
-
-    return {
-      url: uploadResult.url,
-      cloudinaryId: uploadResult.public_id,
-      displayOrder,
-    };
   }
 
   remove(id: number) {

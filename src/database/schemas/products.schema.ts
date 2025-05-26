@@ -94,6 +94,20 @@ export const RelatedProductTable = pgTable(
   }),
 );
 
+export const ProductSagaLogTable = pgTable('product_saga_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  productId: uuid('product_id').notNull(),
+  step: text('step').$type<
+    'STARTED' | 'PRODUCT_CREATED' | 'IMAGES_UPLOADED' | 'COMPLETED' | 'FAILED'
+  >(),
+  compensationStatus: text('compensation_status').$type<
+    'PENDING' | 'COMPENSATED'
+  >(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export type ProductSagaLog = typeof ProductSagaLogTable.$inferSelect;
+
 export const productImageRelations = relations(
   ProductImageTable,
   ({ one }) => ({
