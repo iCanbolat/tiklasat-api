@@ -8,13 +8,22 @@ import {
   Delete,
   HttpCode,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { ProductsService } from '../providers/products.service';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
-import { ApiBody, ApiCreatedResponse, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { GetProductsDto } from '../dto/get-products.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesValidationPipe } from './pipes/multi-image-upload.pipe';
 
 @Controller('products')
 export class ProductsController {
@@ -22,6 +31,8 @@ export class ProductsController {
 
   @Public()
   @Post()
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FilesInterceptor('files'))
   @HttpCode(201)
   @ApiOperation({
     summary: 'Creates a new product.',
@@ -32,8 +43,21 @@ export class ProductsController {
   @ApiCreatedResponse({
     description: 'Product successfully created',
   })
-  create(@Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(createProductDto);
+  create(
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles(FilesValidationPipe) files: Express.Multer.File[],
+  ) {
+    if (files && files.length > 0) {
+      createProductDto.images = files.map((file, index) => ({
+        file,
+        url: createProductDto.imageUrls?.[index] || '',
+        cloudinaryId: createProductDto.cloudinaryIds?.[index] || undefined,
+        displayOrder: createProductDto.displayOrders?.[index] || index,
+      }));
+    }
+    console.log('dt', createProductDto);
+
+    return { dto: createProductDto };
   }
 
   @Public()

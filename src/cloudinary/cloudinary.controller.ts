@@ -14,7 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation } from '@nestjs/swagger';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { UploadImageDto } from './dto/upload-image.dto';
-import { CloudinaryUploadValidationPipe } from './pipes/cloıdinary-upload.pipe';
+import { CloudinaryUploadValidationPipe } from './pipes/cloudinary-upload.pipe';
 import { FileValidationPipe } from './pipes/file-validation.pipe';
 
 @Controller('cloudinary')

@@ -1,4 +1,5 @@
-import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
 import {
   IsString,
   IsNotEmpty,
@@ -10,6 +11,9 @@ import {
   Min,
   IsArray,
   ValidateNested,
+  MinLength,
+  IsPositive,
+  MaxLength,
 } from 'class-validator';
 import {
   CurrencyEnum,
@@ -18,93 +22,124 @@ import {
   ProductStatusType,
 } from 'src/database/schemas/products.schema';
 
-export class AttributeDto {
-  @IsString()
-  variantType: string;
+class ImageDto {
+  @IsNotEmpty()
+  file: any;
 
-  @IsString()
-  value: string;
-}
-
-export class ImageDto {
   @IsString()
   url: string;
 
+  @ApiProperty({
+    description: 'Display order of this image',
+    example: 1,
+  })
+  @IsNumber()
+  @IsNotEmpty()
+  @Transform(({ value }) => parseInt(value, 10))
+  displayOrder: number;
+
+  @IsOptional()
   @IsString()
-  cloudinaryId: string;
+  cloudinaryId?: string;
+}
+
+class AttributeDto {
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value : JSON.parse(value).id,
+  )
+  id: string;
 
   @IsString()
-  displayOrder: number;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value : JSON.parse(value).variantType,
+  )
+  variantType: string;
+
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value : JSON.parse(value).value,
+  )
+  value: string;
+}
+
+class CategoryDto {
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value : JSON.parse(value).id,
+  )
+  id: string;
+
+  @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value : JSON.parse(value).name,
+  )
+  name: string;
 }
 
 export class CreateProductDto {
   @IsString()
-  @IsNotEmpty()
+  @MinLength(2)
   name: string;
 
-  @IsOptional()
   @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsString()
-  categoryName?: string;
+  @MinLength(2)
+  slug: string;
 
   @IsOptional()
   @IsString()
-  parentId?: string;
+  @MinLength(7)
+  description: string;
 
   @IsOptional()
   @IsString()
-  metaTitle?: string;
+  @MinLength(2)
+  sku: string;
 
   @IsOptional()
-  @IsString()
-  metaDescription?: string;
-
-  @IsOptional()
-  @IsString()
-  metaKeywords?: string;
-
-  @IsOptional()
-  @IsString()
-  sku?: string;
-
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  price: number;
-
   @IsEnum(CurrencyEnum.Enum)
-  @IsOptional()
+  @Transform(({ value }) => value as CurrencyType)
   currency?: CurrencyType;
 
-  @IsEnum(ProductStatusEnum.Enum)
-  @IsOptional()
-  status?: ProductStatusType;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  stockQuantity?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  stockUnderThreshold?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isFeatured: boolean = false;
-
-  @IsOptional()
-  @IsBoolean()
-  isVariant: boolean;
-
+  // Image metadata (separate from files)
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => AttributeDto)
-  attributes?: AttributeDto[];
+  @IsString({ each: true })
+  imageUrls?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  cloudinaryIds?: string[];
+
+  @ApiPropertyOptional({ type: [Number] })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value.map((v) => parseInt(v, 10)) : [],
+  )
+  displayOrders?: number[];
+  ///////
+
+  @ApiProperty({
+    description: 'Price of this product',
+    example: 1,
+  })
+  @IsNumber()
+  @IsNotEmpty()
+  @Transform(({ value }) => parseFloat(value))
+  @IsPositive()
+  price: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  @Transform(({ value }) => parseFloat(value))
+  cost?: number;
 
   @IsOptional()
   @IsArray()
@@ -113,19 +148,66 @@ export class CreateProductDto {
   images?: ImageDto[];
 
   @IsOptional()
+  @IsString()
+  // @Transform(({ value }) => (value === 'null' ? null : value))
+  parentId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CategoryDto)
+  @Transform(({ value }) => JSON.parse(value))
+  category?: CategoryDto;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateProductDto)
-  variants?: CreateProductDto[];
+  @Type(() => AttributeDto)
+  @Transform(({ value }) => JSON.parse(value))
+  // @Transform(({ value }) => (Array.isArray(value) ? value : JSON.parse(value)))
+  attributes?: AttributeDto[];
+
+  @IsEnum(ProductStatusEnum.Enum)
+  @Transform(({ value }) => value as ProductStatusType)
+  status: ProductStatusType;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true')
+  isFeatured?: boolean;
+
+  @IsNumber()
+  @IsInt()
+  @Min(0)
+  @Transform(({ value }) => parseInt(value, 10))
+  stockQuantity: number;
+
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true')
+  manageStock: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true')
+  allowBackorders?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Min(0)
+  @Transform(({ value }) => parseInt(value, 10))
+  stockUnderThreshold?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  metaTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  metaDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  metaKeywords?: string;
 }
-
-// export class CreateProductWithImagesDto extends CreateProductDto {
-//   @IsArray()
-//   @IsOptional()
-//   images?: Express.Multer.File[];
-
-//   @IsArray()
-//   @IsOptional()
-//   @IsNumber({}, { each: true })
-//   displayOrders?: number[];
-// }

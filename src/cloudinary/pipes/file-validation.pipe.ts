@@ -19,7 +19,7 @@ export class FileValidationPipe implements PipeTransform {
     });
     if (!maxSizeValidator.isValid(file)) {
       throw new BadRequestException(
-        `File too large. Maximum size is ${maxSize} bytes`,
+        `File too large. Maximum size is ${maxSize} bytes . Current ${file.size}`,
       );
     }
 

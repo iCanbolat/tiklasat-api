@@ -39,10 +39,10 @@ export class CategoriesService {
   }
 
   async updateOrCreateCategoryWithProducts(
-    categoryName: string,
+    categoryId: string,
     { productIdsToLink, productIdsToUnlink }: UpdateCategoryProductsDto,
   ) {
-    const category = await this.findOrCreateCategory(categoryName);
+    const category = await this.findOrCreateCategory(categoryId);
 
     // if there are parent categories, link the products to them as well
     let categoryIdsToLink = [];
@@ -249,19 +249,20 @@ export class CategoriesService {
       }));
   }
 
-  private async findOrCreateCategory(categoryName: string) {
-    const slug = slugify(categoryName, { lower: true });
-
+  private async findOrCreateCategory(categoryId: string) {
+    
     const category = await this.drizzleService.db.query.categories.findFirst({
-      where: (categories, { eq }) => eq(categories.slug, slug),
+      where: (categories, { eq }) => eq(categories.id, categoryId),
     });
 
+    const slug = slugify(category.name, { lower: true });
+    
     if (category) {
       return category;
     }
 
     return await this.create({
-      name: categoryName,
+      name: category.name,
       imageUrl: '',
       slug,
       isActive: true,

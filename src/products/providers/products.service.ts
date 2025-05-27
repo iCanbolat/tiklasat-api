@@ -42,33 +42,33 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   async create(
     createProductDto: CreateProductDto,
   ): Promise<ProductResponseDto> {
-    const { variants } = createProductDto;
+    // const { variants } = createProductDto;
 
     const parentProduct = await this.createProduct(createProductDto);
 
     let variantProducts = [];
 
-    if (variants?.length > 0) {
-      variants.forEach(
-        (variant) => (variant.parentId = parentProduct.product.id),
-      );
+    // if (variants?.length > 0) {
+    //   variants.forEach(
+    //     (variant) => (variant.parentId = parentProduct.product.id),
+    //   );
 
-      try {
-        const variantResponses = await Promise.all(
-          variants.map((variant) => this.createProduct(variant)),
-        );
-        variantProducts = variantResponses.map((response) => ({
-          product: {
-            ...response.product,
-            attributes: response.attributes ?? [],
-            images: response.images ?? [],
-          },
-        }));
-      } catch (error) {
-        console.error('Error creating variant products:', error);
-        throw new Error('Failed to create all variant products');
-      }
-    }
+    //   try {
+    //     const variantResponses = await Promise.all(
+    //       variants.map((variant) => this.createProduct(variant)),
+    //     );
+    //     variantProducts = variantResponses.map((response) => ({
+    //       product: {
+    //         ...response.product,
+    //         attributes: response.attributes ?? [],
+    //         images: response.images ?? [],
+    //       },
+    //     }));
+    //   } catch (error) {
+    //     console.error('Error creating variant products:', error);
+    //     throw new Error('Failed to create all variant products');
+    //   }
+    // }
     return {
       product: {
         ...parentProduct.product,
@@ -84,7 +84,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     createProductDto: Partial<CreateProductDto>,
   ): Promise<ProductServiceResponse> {
     const {
-      categoryName,
+      category,
       attributes,
       isFeatured,
       name,
@@ -95,7 +95,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       currency,
       description,
       stockQuantity,
-      isVariant,
+      // isVariant,
       parentId,
       images,
     } = createProductDto;
@@ -113,28 +113,28 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         stockUnderThreshold,
         description,
         stockQuantity,
-        isVariant: parentId ? true : isVariant,
+        // isVariant: parentId ? true : isVariant,
         parentId,
       })
       .returning();
 
-    if (categoryName) {
-      this.categoryService.updateOrCreateCategoryWithProducts(categoryName, {
+    if (category) {
+      this.categoryService.updateOrCreateCategoryWithProducts(category.id, {
         productIdsToLink: [product.id],
         productIdsToUnlink: [],
       });
     }
 
-    if (images?.length > 0) {
-      await this.drizzleService.db.insert(ProductImageTable).values(
-        images.map((image) => ({
-          productId: product.id,
-          url: image.url,
-          displayOrder: image.displayOrder,
-          cloudinaryId: image.cloudinaryId,
-        })),
-      );
-    }
+    // if (images?.length > 0) {
+    //   await this.drizzleService.db.insert(ProductImageTable).values(
+    //     images.map((image) => ({
+    //       productId: product.id,
+    //       url: image.url,
+    //       displayOrder: image.displayOrder,
+    //       cloudinaryId: image.cloudinaryId,
+    //     })),
+    //   );
+    // }
 
     if (attributes?.length > 0) {
       await this.drizzleService.db.insert(ProductVariantTable).values(
@@ -145,7 +145,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         })),
       );
     }
-    return { product, attributes, images };
+    return { product, attributes };
   }
 
   async findOne(
@@ -330,7 +330,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       name,
       price,
       stockQuantity,
-      categoryName,
+      category,
       productIdsToUnlink,
       productIdsToLink,
     } = updateProductDto;
@@ -344,8 +344,8 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       throw Error('Product not found.');
     }
 
-    if (categoryName) {
-      this.categoryService.updateOrCreateCategoryWithProducts(categoryName, {
+    if (category) {
+      this.categoryService.updateOrCreateCategoryWithProducts(category.id, {
         productIdsToLink,
         productIdsToUnlink,
       });

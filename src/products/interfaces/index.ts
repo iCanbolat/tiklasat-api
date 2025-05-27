@@ -27,7 +27,7 @@ export type IRelatedProduct = Pick<IProduct, 'id' | 'name' | 'slug' | 'price'>;
 export interface IProductImages {
   url: string;
   displayOrder: number;
-  cloudinaryId: string;
+  cloudinaryId?: string;
 }
 
 export interface IProductAttributes {
