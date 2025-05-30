@@ -91,7 +91,7 @@ export class CategoriesService {
 
     return {
       message: 'Category products updated successfully',
-      categoryId: category.id,
+      category: { id: category.id, name: category.name },
       linkedProducts: productIdsToLink || [],
       unlinkedProducts: productIdsToUnlink || [],
     };
@@ -250,13 +250,12 @@ export class CategoriesService {
   }
 
   private async findOrCreateCategory(categoryId: string) {
-    
     const category = await this.drizzleService.db.query.categories.findFirst({
       where: (categories, { eq }) => eq(categories.id, categoryId),
     });
 
     const slug = slugify(category.name, { lower: true });
-    
+
     if (category) {
       return category;
     }

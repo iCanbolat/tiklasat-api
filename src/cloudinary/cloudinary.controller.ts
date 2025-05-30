@@ -44,6 +44,6 @@ export class CloudinaryController {
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.cloudinaryService.remove(+id);
+    return this.cloudinaryService.delete(id);
   }
 }

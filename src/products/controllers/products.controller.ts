@@ -55,14 +55,13 @@ export class ProductsController {
         displayOrder: createProductDto.displayOrders?.[index] || index,
       }));
     }
-    console.log('dt', createProductDto);
-
-    return { dto: createProductDto };
+    
+    return this.productsService.create(createProductDto,files);
   }
 
   @Public()
   @Get()
-  @HttpCode(201)
+  @HttpCode(200)
   getProducts(@Query() getProductsDto: GetProductsDto) {
     return this.productsService.findAll(getProductsDto);
   }

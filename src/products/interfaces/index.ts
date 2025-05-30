@@ -46,7 +46,7 @@ export type ProductResponseDto = {
   product: IProduct & {
     attributes: IProductAttributes[];
     images: IProductImages[];
-    category?: ICategory;
+    category?: Partial<ICategory>;
   };
   variants?: IProduct[];
   relatedProducts?: IRelatedProduct[];

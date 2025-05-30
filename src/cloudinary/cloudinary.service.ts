@@ -21,11 +21,8 @@ export class CloudinaryService {
     productId: string,
     displayOrder: number,
     folder?: string,
-    tx?: PgTransaction<any, any, any>,
   ): Promise<{ url: string; cloudinaryId: string; displayOrder: number }> {
-    const db = tx || this.drizzleService.db;
-
-    const [product] = await db
+    const [product] = await this.drizzleService.db
       .select()
       .from(ProductTable)
       .where(eq(ProductTable.id, productId))
@@ -48,7 +45,7 @@ export class CloudinaryService {
           if (error) return reject(error);
 
           try {
-            const [image] = await db
+            const [image] = await this.drizzleService.db
               .insert(ProductImageTable)
               .values({
                 url: result.secure_url,
@@ -77,7 +74,12 @@ export class CloudinaryService {
     });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} cloudinary`;
+  async delete(publicId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.cloudinaryClient.uploader.destroy(publicId, (error, result) => {
+        if (error) return reject(error);
+        resolve();
+      });
+    });
   }
 }

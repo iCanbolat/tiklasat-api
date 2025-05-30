@@ -28,12 +28,15 @@ import { PaginatedResults } from 'src/common/types';
 import { PgTable } from 'drizzle-orm/pg-core';
 import { ICategory } from 'src/categories/interfaces';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { ProductCreateSaga } from '../sagas/product-create.saga';
 
 @Injectable()
 export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   constructor(
     drizzleService: DrizzleService,
     private readonly categoryService: CategoriesService,
+    private readonly sagaOrchestrator: ProductCreateSaga,
+
     private readonly cloudinaryImageService: CloudinaryService,
   ) {
     super(drizzleService, ProductTable);
@@ -41,51 +44,29 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
   async create(
     createProductDto: CreateProductDto,
+    files: Express.Multer.File[],
   ): Promise<ProductResponseDto> {
-    // const { variants } = createProductDto;
-
-    const parentProduct = await this.createProduct(createProductDto);
-
-    let variantProducts = [];
-
-    // if (variants?.length > 0) {
-    //   variants.forEach(
-    //     (variant) => (variant.parentId = parentProduct.product.id),
-    //   );
-
-    //   try {
-    //     const variantResponses = await Promise.all(
-    //       variants.map((variant) => this.createProduct(variant)),
-    //     );
-    //     variantProducts = variantResponses.map((response) => ({
-    //       product: {
-    //         ...response.product,
-    //         attributes: response.attributes ?? [],
-    //         images: response.images ?? [],
-    //       },
-    //     }));
-    //   } catch (error) {
-    //     console.error('Error creating variant products:', error);
-    //     throw new Error('Failed to create all variant products');
-    //   }
-    // }
+    const sagaResult = await this.sagaOrchestrator.execute(
+      createProductDto,
+      files,
+    );
+    
     return {
       product: {
-        ...parentProduct.product,
-        attributes: parentProduct.attributes ?? [],
-        images: parentProduct.images ?? [],
-        category: parentProduct.category,
+        ...sagaResult.product,
+        attributes: sagaResult.attributes ?? [],
+        images: sagaResult.images ?? [],
+        category: sagaResult.category,
       },
-      variants: variantProducts,
     };
   }
 
   private async createProduct(
     createProductDto: Partial<CreateProductDto>,
-  ): Promise<ProductServiceResponse> {
+  ): Promise<any> {
     const {
-      category,
-      attributes,
+      // category,
+      // attributes,
       isFeatured,
       name,
       price,
@@ -100,7 +81,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       images,
     } = createProductDto;
 
-    const [product] = await this.drizzleService.db
+    return await this.drizzleService.db
       .insert(ProductTable)
       .values({
         name,
@@ -116,36 +97,26 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         // isVariant: parentId ? true : isVariant,
         parentId,
       })
-      .returning();
+      .returning()
+      .then((rows) => rows[0]);
 
-    if (category) {
-      this.categoryService.updateOrCreateCategoryWithProducts(category.id, {
-        productIdsToLink: [product.id],
-        productIdsToUnlink: [],
-      });
-    }
+    // if (category) {
+    //   this.categoryService.updateOrCreateCategoryWithProducts(category.id, {
+    //     productIdsToLink: [product.id],
+    //     productIdsToUnlink: [],
+    //   });
+    // }
 
-    // if (images?.length > 0) {
-    //   await this.drizzleService.db.insert(ProductImageTable).values(
-    //     images.map((image) => ({
+    // if (attributes?.length > 0) {
+    //   await this.drizzleService.db.insert(ProductVariantTable).values(
+    //     attributes.map((attr) => ({
     //       productId: product.id,
-    //       url: image.url,
-    //       displayOrder: image.displayOrder,
-    //       cloudinaryId: image.cloudinaryId,
+    //       variantType: slugify(attr.variantType, { lower: true }),
+    //       value: slugify(attr.value, { lower: true }),
     //     })),
     //   );
     // }
-
-    if (attributes?.length > 0) {
-      await this.drizzleService.db.insert(ProductVariantTable).values(
-        attributes.map((attr) => ({
-          productId: product.id,
-          variantType: slugify(attr.variantType, { lower: true }),
-          value: slugify(attr.value, { lower: true }),
-        })),
-      );
-    }
-    return { product, attributes };
+    // return { product, attributes };
   }
 
   async findOne(
