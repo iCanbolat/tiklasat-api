@@ -157,6 +157,8 @@ export class CategoriesService {
 
     const subCategories = await this.getSubcategories(categoryId);
 
+    console.log('products', category.products);
+
     return {
       category: category.category,
       products: category.products,
@@ -340,8 +342,25 @@ export class CategoriesService {
   }
 
   private getAggregatedProducts() {
-    return sql`array_agg(
-        jsonb_build_object('product', ${ProductTable}, 'name', ${ProductTable.name}, 'imageUrl', ${ProductImageTable.url})
-        ) FILTER (WHERE ${ProductTable.id} IS NOT NULL)`.as('products');
+    return sql`
+    jsonb_agg(
+      distinct jsonb_build_object(
+        'id', ${ProductTable.id},
+        'name', ${ProductTable.name},
+        'slug', ${ProductTable.slug},
+        'price', ${ProductTable.price},
+        'images', (
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', ${ProductImageTable.id},
+              'url', ${ProductImageTable.url}
+            )
+          )
+          FROM ${ProductImageTable}
+          WHERE ${ProductImageTable.productId} = ${ProductTable.id}
+        )
+      )
+    ) FILTER (WHERE ${ProductTable.id} IS NOT NULL)
+  `.as('products');
   }
 }
