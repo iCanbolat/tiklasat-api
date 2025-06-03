@@ -4,8 +4,13 @@ import {
   IsString,
   IsArray,
   ValidateNested,
+  IsEnum,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
+import {
+  ProductStatusEnum,
+  ProductStatusType,
+} from 'src/database/schemas/products.schema';
 
 class AttributeDto {
   @IsString()
@@ -17,8 +22,9 @@ class AttributeDto {
 
 export class GetProductsDto {
   @IsOptional()
-  @IsString()
-  categorySlug?: string;
+  @IsString({ each: true })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  categorySlug?: string[];
 
   @IsOptional()
   @Type(() => Number)
@@ -45,4 +51,9 @@ export class GetProductsDto {
   @Type(() => Number)
   @IsNumber()
   pageSize?: number;
+
+  @IsOptional()
+  @IsEnum(ProductStatusEnum.enum, { each: true })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  status?: ProductStatusType[];
 }

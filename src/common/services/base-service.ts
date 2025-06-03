@@ -8,10 +8,6 @@ import {
   TableConfig,
 } from 'drizzle-orm/pg-core';
 import { PaginatedResults } from '../types';
-import {
-  CategoryTable,
-  ProductCategoryTable,
-} from 'src/database/schemas/categories.schema';
 
 @Injectable()
 export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
@@ -36,9 +32,9 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   protected abstract applyFilters?<F>(query: any, filters: F): any;
 
-  // protected abstract applyPaginateJoins?(
-  //   query: PgSelectBase<any, any, any>,
-  // ): any;
+  protected abstract applyPaginateJoins?(
+    query: PgSelectBase<any, any, any>,
+  ): any;
 
   async getPaginatedResult(
     filters: any,
@@ -84,7 +80,7 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
       .select({ count: countDistinct(this.table.id) })
       .from(this.table);
 
-    // countQuery = this.applyPaginateJoins(countQuery);
+    countQuery = this.applyPaginateJoins(countQuery);
 
     const query = this.applyFilters(countQuery, filters);
 

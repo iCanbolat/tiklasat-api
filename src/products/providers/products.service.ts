@@ -25,7 +25,7 @@ import {
   ProductServiceResponse,
 } from '../interfaces';
 import { PaginatedResults } from 'src/common/types';
-import { PgTable } from 'drizzle-orm/pg-core';
+import { PgSelectBase, PgTable } from 'drizzle-orm/pg-core';
 import { ICategory } from 'src/categories/interfaces';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { ProductCreateSaga } from '../sagas/product-create.saga';
@@ -50,7 +50,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       createProductDto,
       files,
     );
-    
+
     return {
       product: {
         ...sagaResult.product,
@@ -61,63 +61,63 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     };
   }
 
-  private async createProduct(
-    createProductDto: Partial<CreateProductDto>,
-  ): Promise<any> {
-    const {
-      // category,
-      // attributes,
-      isFeatured,
-      name,
-      price,
-      status,
-      sku,
-      stockUnderThreshold,
-      currency,
-      description,
-      stockQuantity,
-      // isVariant,
-      parentId,
-      images,
-    } = createProductDto;
+  // private async createProduct(
+  //   createProductDto: Partial<CreateProductDto>,
+  // ): Promise<any> {
+  //   const {
+  //     // category,
+  //     // attributes,
+  //     isFeatured,
+  //     name,
+  //     price,
+  //     status,
+  //     sku,
+  //     stockUnderThreshold,
+  //     currency,
+  //     description,
+  //     stockQuantity,
+  //     // isVariant,
+  //     parentId,
+  //     images,
+  //   } = createProductDto;
 
-    return await this.drizzleService.db
-      .insert(ProductTable)
-      .values({
-        name,
-        slug: slugify(name, { lower: true }),
-        isFeatured,
-        price,
-        currency,
-        status,
-        sku,
-        stockUnderThreshold,
-        description,
-        stockQuantity,
-        // isVariant: parentId ? true : isVariant,
-        parentId,
-      })
-      .returning()
-      .then((rows) => rows[0]);
+  //   return await this.drizzleService.db
+  //     .insert(ProductTable)
+  //     .values({
+  //       name,
+  //       slug: slugify(name, { lower: true }),
+  //       isFeatured,
+  //       price,
+  //       currency,
+  //       status,
+  //       sku,
+  //       stockUnderThreshold,
+  //       description,
+  //       stockQuantity,
+  //       // isVariant: parentId ? true : isVariant,
+  //       parentId,
+  //     })
+  //     .returning()
+  //     .then((rows) => rows[0]);
 
-    // if (category) {
-    //   this.categoryService.updateOrCreateCategoryWithProducts(category.id, {
-    //     productIdsToLink: [product.id],
-    //     productIdsToUnlink: [],
-    //   });
-    // }
+  //   // if (category) {
+  //   //   this.categoryService.updateOrCreateCategoryWithProducts(category.id, {
+  //   //     productIdsToLink: [product.id],
+  //   //     productIdsToUnlink: [],
+  //   //   });
+  //   // }
 
-    // if (attributes?.length > 0) {
-    //   await this.drizzleService.db.insert(ProductVariantTable).values(
-    //     attributes.map((attr) => ({
-    //       productId: product.id,
-    //       variantType: slugify(attr.variantType, { lower: true }),
-    //       value: slugify(attr.value, { lower: true }),
-    //     })),
-    //   );
-    // }
-    // return { product, attributes };
-  }
+  //   // if (attributes?.length > 0) {
+  //   //   await this.drizzleService.db.insert(ProductVariantTable).values(
+  //   //     attributes.map((attr) => ({
+  //   //       productId: product.id,
+  //   //       variantType: slugify(attr.variantType, { lower: true }),
+  //   //       value: slugify(attr.value, { lower: true }),
+  //   //     })),
+  //   //   );
+  //   // }
+  //   // return { product, attributes };
+  // }
 
   async findOne(
     productId: string,
@@ -246,6 +246,14 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         eq(ProductImageTable.productId, ProductTable.id),
       )
       .leftJoin(
+        ProductCategoryTable,
+        eq(ProductCategoryTable.productId, ProductTable.id),
+      )
+      .leftJoin(
+        CategoryTable,
+        eq(ProductCategoryTable.categoryId, CategoryTable.id),
+      )
+      .leftJoin(
         ProductVariantTable,
         eq(ProductVariantTable.productId, ProductTable.id),
       )
@@ -263,29 +271,57 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     };
   }
 
+  protected applyPaginateJoins?(query: PgSelectBase<any, any, any>) {
+    return query
+      .leftJoin(
+        ProductCategoryTable,
+        eq(ProductTable.id, ProductCategoryTable.productId),
+      )
+      .leftJoin(
+        CategoryTable,
+        eq(ProductCategoryTable.categoryId, CategoryTable.id),
+      )
+      .leftJoin(
+        ProductVariantTable,
+        eq(ProductTable.id, ProductVariantTable.productId),
+      );
+  }
+
   protected async applyFilters(query: any, filters: GetProductsDto) {
-    const { categorySlug, minPrice, maxPrice, attributes } = filters;
+    const { categorySlug, minPrice, maxPrice, attributes, status } = filters;
+
+    const conditions = [];
 
     if (categorySlug?.length > 0) {
-      query = query.where(eq(CategoryTable.slug, categorySlug));
+      console.log(categorySlug);
+      conditions.push(inArray(CategoryTable.slug, categorySlug));
     }
 
-    if (minPrice) {
-      query = query.where(gte(ProductTable.price, minPrice));
+    if (minPrice !== undefined) {
+      conditions.push(gte(ProductTable.price, minPrice));
     }
-    if (maxPrice) {
-      query = query.where(lte(ProductTable.price, maxPrice));
+
+    if (maxPrice !== undefined) {
+      conditions.push(lte(ProductTable.price, maxPrice));
+    }
+
+    if (status?.length > 0) {
+      conditions.push(inArray(ProductTable.status, status));
     }
 
     if (attributes?.length > 0) {
-      attributes.forEach(({ type, value }) => {
-        query = query.where(
+      for (const { type, value } of attributes) {
+        conditions.push(
           and(
             eq(ProductVariantTable.variantType, type),
             eq(ProductVariantTable.value, value),
           ),
         );
-      });
+      }
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
     }
 
     return query;
