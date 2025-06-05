@@ -126,7 +126,7 @@ export class ProductCreateSaga {
         .insert(ProductTable)
         .values({
           name: createProductDto.name,
-          slug: slugify(createProductDto.name, { lower: true }),
+          slug: createProductDto.slug || slugify(createProductDto.name, { lower: true }),
           isFeatured: createProductDto.isFeatured,
           price: createProductDto.price,
           currency: createProductDto.currency,

@@ -1,38 +1,36 @@
-import {
-  PipeTransform,
-  Injectable,
-  BadRequestException,
-  MaxFileSizeValidator,
-  FileTypeValidator,
-} from '@nestjs/common';
+import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
+import { MaxFileSizeValidator, FileTypeValidator } from '@nestjs/common';
 
 @Injectable()
 export class FilesValidationPipe implements PipeTransform {
-  async transform(
-    files: Express.Multer.File[],
-  ): Promise<Express.Multer.File[]> {
+  async transform(files: Express.Multer.File[] | undefined): Promise<Express.Multer.File[] | undefined> {
+    // If no files are provided, return undefined
     if (!files || files.length === 0) {
-      throw new BadRequestException('No files uploaded');
+      return undefined;
     }
 
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 5 * 1024 * 1024; // 5MB
     const allowedTypes = /(jpg|jpeg|png|webp)$/;
-
+    
+    const errors: string[] = [];
     const maxSizeValidator = new MaxFileSizeValidator({ maxSize });
     const fileTypeValidator = new FileTypeValidator({ fileType: allowedTypes });
 
-    for (const file of files) {
+    files.forEach(file => {
       if (!maxSizeValidator.isValid(file)) {
-        throw new BadRequestException(
-          `File ${file.originalname} is too large. Maximum size is ${maxSize} bytes. Current size: ${file.size} bytes`,
+        errors.push(
+          `File ${file.originalname} is too large (max ${maxSize} bytes)`
         );
       }
-
       if (!fileTypeValidator.isValid(file)) {
-        throw new BadRequestException(
-          `File ${file.originalname} has invalid type. Only ${allowedTypes} are allowed`,
+        errors.push(
+          `File ${file.originalname} has invalid type (allowed: ${allowedTypes})`
         );
       }
+    });
+
+    if (errors.length > 0) {
+      throw new BadRequestException(errors.join('; '));
     }
 
     return files;

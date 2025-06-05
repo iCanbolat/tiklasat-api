@@ -374,27 +374,24 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return updatedCategory;
   }
 
-  async delete(id: string) {
-    const product = await this.findOne(id, { includeVariant: true });
+  async delete(ids: string | string[]) {
+    const idArray = Array.isArray(ids) ? ids : [ids];
 
-    if (product.variants.length > 0) {
-      await this.drizzleService.db
-        .delete(ProductTable)
-        .where(
-          inArray(ProductTable.id, [
-            id,
-            ...product.variants.map((variant) => variant.id),
-          ]),
-        )
-        .execute();
+    const allIdsToDelete = new Set<string>();
+
+    for (const id of idArray) {
+      const product = await this.findOne(id, { includeVariant: true });
+
+      allIdsToDelete.add(id);
+      product.variants.forEach((variant) => allIdsToDelete.add(variant.id));
     }
 
     await this.drizzleService.db
       .delete(ProductTable)
-      .where(eq(ProductTable.id, id))
+      .where(inArray(ProductTable.id, Array.from(allIdsToDelete)))
       .execute();
 
-    return `This action removed${id} product and its variants`;
+    return `Deleted products: ${Array.from(allIdsToDelete).join(', ')}`;
   }
 
   private mapSelectFields<T extends PgTable<any>>(

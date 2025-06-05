@@ -45,7 +45,7 @@ export class ProductsController {
   })
   create(
     @Body() createProductDto: CreateProductDto,
-    @UploadedFiles(FilesValidationPipe) files: Express.Multer.File[],
+    @UploadedFiles(FilesValidationPipe) files?: Express.Multer.File[],
   ) {
     if (files && files.length > 0) {
       createProductDto.images = files.map((file, index) => ({
@@ -55,8 +55,8 @@ export class ProductsController {
         displayOrder: createProductDto.displayOrders?.[index] || index,
       }));
     }
-    
-    return this.productsService.create(createProductDto,files);
+
+    return this.productsService.create(createProductDto, files);
   }
 
   @Public()
@@ -79,8 +79,9 @@ export class ProductsController {
   }
 
   @Public()
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.productsService.delete(id);
+  @HttpCode(200)
+  @Delete()
+  remove(@Body('ids') ids: string | string[]) {
+    return this.productsService.delete(ids);
   }
 }
