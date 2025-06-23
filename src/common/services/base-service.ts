@@ -26,7 +26,7 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   protected abstract create(data: any, files?: any): any;
 
-  protected abstract update(id: string, data: any): any;
+  // protected abstract update(id: string, data: any): any;
 
   protected abstract delete(id: string): any;
 

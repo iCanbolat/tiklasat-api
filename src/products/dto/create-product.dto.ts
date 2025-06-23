@@ -23,11 +23,16 @@ import {
 } from 'src/database/schemas/products.schema';
 
 class ImageDto {
-  @IsNotEmpty()
-  file: any;
-
+  @IsOptional()
   @IsString()
-  url: string;
+  id?: string;
+
+  @IsOptional()
+  file?: any;
+
+  @IsOptional()
+  @IsString()
+  url?: string;
 
   @ApiProperty({
     description: 'Display order of this image',
@@ -104,6 +109,9 @@ export class CreateProductDto {
   // Image metadata (separate from files)
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value.flat(Infinity) : [value],
+  )
   @IsArray()
   @IsString({ each: true })
   imageUrls?: string[];

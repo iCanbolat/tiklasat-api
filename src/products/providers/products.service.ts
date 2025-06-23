@@ -328,18 +328,29 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
   }
 
   async update(
+    dto: UpdateProductDto | UpdateProductDto[],
+  ): Promise<ProductResponseDto | ProductResponseDto[]> {
+    if (Array.isArray(dto)) {
+      const results = await Promise.all(
+        dto.map((item) => this.updateSingle(item.id, item)),
+      );
+      return results;
+    }
+
+    return this.updateSingle(dto.id, dto);
+  }
+
+  async updateSingle(
     id: string,
     updateProductDto: UpdateProductDto,
-  ): Promise<IProduct> {
+  ): Promise<ProductResponseDto> {
     const {
-      description,
-      isFeatured,
-      name,
-      price,
-      stockQuantity,
       category,
-      productIdsToUnlink,
       productIdsToLink,
+      productIdsToUnlink,
+      images,
+      imagesToDelete,
+      ...rest
     } = updateProductDto;
 
     const existingProduct =
@@ -348,30 +359,65 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       });
 
     if (!existingProduct) {
-      throw Error('Product not found.');
+      throw new Error('Product not found.');
     }
 
-    if (category) {
-      this.categoryService.updateOrCreateCategoryWithProducts(category.id, {
-        productIdsToLink,
-        productIdsToUnlink,
-      });
-    }
+    await this.drizzleService.db.transaction(async (tx) => {
+      await tx
+        .update(ProductTable)
+        .set({
+          ...rest,
+        })
+        .where(eq(ProductTable.id, id))
+        .returning();
 
-    const [updatedCategory] = await this.drizzleService.db
-      .update(ProductTable)
-      .set({
-        description,
-        isFeatured,
-        name,
-        slug: slugify(name, { lower: true }),
-        price,
-        stockQuantity,
-      })
-      .where(eq(ProductTable.id, id))
-      .returning();
+      if (category) {
+        await this.categoryService.updateOrCreateCategoryWithProducts(
+          category.id,
+          {
+            productIdsToLink,
+            productIdsToUnlink,
+          },
+        );
+      }
 
-    return updatedCategory;
+      if (imagesToDelete?.length > 0) {
+        await tx
+          .delete(ProductImageTable)
+          .where(inArray(ProductImageTable.cloudinaryId, imagesToDelete));
+      }
+
+      if (images?.length > 0) {
+        for (const img of images) {
+          if (img.file) {
+            const uploads = images
+              .filter((image) => image.file)
+              .map((image) => {
+                return this.cloudinaryImageService.uploadProductImage(
+                  image.file,
+                  id,
+                  image.displayOrder,
+                  'products',
+                );
+              });
+
+            await Promise.all(uploads);
+          } else {
+            await tx
+              .update(ProductImageTable)
+              .set({
+                displayOrder: img.displayOrder,
+                cloudinaryId: img.cloudinaryId,
+              })
+              .where(eq(ProductImageTable.cloudinaryId, img.cloudinaryId));
+          }
+        }
+      }
+    });
+
+    const product = await this.findOne(id);
+
+    return product;
   }
 
   async delete(ids: string | string[]) {
