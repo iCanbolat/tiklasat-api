@@ -51,7 +51,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       files,
     );
 
-    return {
+    let response: ProductResponseDto = {
       product: {
         ...sagaResult.product,
         attributes: sagaResult.attributes ?? [],
@@ -59,6 +59,17 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         category: sagaResult.category,
       },
     };
+
+    if (createProductDto.parentId) {
+      const product = await this.findOne(createProductDto.parentId, {
+        includeVariant: true,
+      });
+      response = product;
+    }
+
+    console.log('resnponse', response);
+
+    return response;
   }
 
   // private async createProduct(

@@ -157,7 +157,6 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
-  // @Transform(({ value }) => (value === 'null' ? null : value))
   parentId?: string;
 
   @IsOptional()
@@ -171,7 +170,6 @@ export class CreateProductDto {
   @ValidateNested({ each: true })
   @Type(() => AttributeDto)
   @Transform(({ value }) => JSON.parse(value))
-  // @Transform(({ value }) => (Array.isArray(value) ? value : JSON.parse(value)))
   attributes?: AttributeDto[];
 
   @IsEnum(ProductStatusEnum.Enum)
