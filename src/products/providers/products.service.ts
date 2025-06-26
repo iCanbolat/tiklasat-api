@@ -11,8 +11,7 @@ import {
   ProductImageTable,
   ProductVariantTable,
 } from 'src/database/schemas/products.schema';
-import { and, eq, gte, inArray, lte, sql, SQL } from 'drizzle-orm';
-import slugify from 'slugify';
+import { and, eq, gte, ilike, inArray, lte, or, sql, SQL } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { AbstractCrudService } from 'src/common/services/base-service';
@@ -302,6 +301,15 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     const { categorySlug, minPrice, maxPrice, attributes, status } = filters;
 
     const conditions = [];
+
+    if (filters.search) {
+      conditions.push(
+        or(
+          ilike(ProductTable.name, `%${filters.search}%`),
+          ilike(ProductTable.description, `%${filters.search}%`),
+        ),
+      );
+    }
 
     if (categorySlug?.length > 0) {
       console.log(categorySlug);

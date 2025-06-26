@@ -22,6 +22,10 @@ class AttributeDto {
 
 export class GetProductsDto {
   @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
   @IsString({ each: true })
   @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
   categorySlug?: string[];
