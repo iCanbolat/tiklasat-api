@@ -55,7 +55,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         ...sagaResult.product,
         attributes: sagaResult.attributes ?? [],
         images: sagaResult.images ?? [],
-        category: sagaResult.category,
+        category: [sagaResult.category],
       },
     };
 
@@ -239,7 +239,9 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         attributes: this.getAttributeSelect() as unknown as SQL.Aliased<
           IProductAttributes[]
         >,
-        category: this.getCategorySelect() as unknown as SQL.Aliased<ICategory>,
+        category: this.getCategorySelect() as unknown as SQL.Aliased<
+          ICategory[]
+        >,
       })
       .from(ProductTable)
       .leftJoin(
@@ -516,18 +518,19 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return sql`
     COALESCE(
       (
-        SELECT jsonb_build_object(
-          'id', c.id,
-          'name', c.name,
-          'slug', c.slug
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', c.id,
+            'name', c.name,
+            'slug', c.slug
+          )
         )
         FROM ${CategoryTable} c
         JOIN ${ProductCategoryTable} pc
           ON pc.category_id = c.id
         WHERE pc.product_id = ${ProductTable.id}
-        LIMIT 1
       ),
-      '{}'::jsonb
+      '[]'::jsonb
     )
   `.as('category');
   };
