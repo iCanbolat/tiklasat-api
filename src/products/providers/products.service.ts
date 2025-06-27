@@ -148,20 +148,37 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     const relatedProducts = await this.drizzleService.db.query.relatedProducts
       .findMany({
-        where: (relatedProducts) =>
-          eq(relatedProducts.productId, response.product.id),
+        where: (rp) => eq(rp.productId, response.product.id),
         with: {
           targetProduct: {
             columns: {
               id: true,
               name: true,
-              slug: true,
+              stockQuantity: true,
               price: true,
+              isFeatured: true,
+              status: true,
+              sku: true,
+            },
+            with: {
+              categories: {
+                with: {
+                  category: {
+                    columns: { id: true, name: true, slug: true },
+                  },
+                },
+              },
+              images: true,
             },
           },
         },
       })
-      .then((rows) => rows.map((row) => row.targetProduct));
+      .then((rows) =>
+        rows.map((row) => ({
+          ...row.targetProduct,
+          categories: row.targetProduct.categories.map((pc) => pc.category),
+        })),
+      );
 
     if (options?.includeVariant) {
       const variants = await this.findOneProduct(productId, true, {
@@ -306,7 +323,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       conditions.push(
         or(
           ilike(ProductTable.name, `%${filters.search}%`),
-          ilike(ProductTable.description, `%${filters.search}%`),
+          ilike(ProductTable.sku, `%${filters.search}%`),
         ),
       );
     }

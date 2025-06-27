@@ -22,7 +22,13 @@ export interface IProduct {
   createdAt: Date;
   updatedAt: Date;
 }
-export type IRelatedProduct = Pick<IProduct, 'id' | 'name' | 'slug' | 'price'>;
+export type IRelatedProduct = Pick<
+  IProduct,
+  'id' | 'name' | 'stockQuantity' | 'price' | 'isFeatured' | 'status' | 'sku'
+> & {
+  images?: IProductImages[];
+  category?: ICategory;
+};
 
 export interface IProductImages {
   url: string;
