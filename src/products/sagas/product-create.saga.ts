@@ -10,8 +10,9 @@ import {
   ProductImageTable,
   ProductSagaLogTable,
   ProductVariantTable,
+  RelatedProductTable,
 } from 'src/database/schemas/products.schema';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 type SagaStep = {
   name: SagaStepName;
@@ -35,6 +36,7 @@ enum SagaStepName {
   CREATE_PRODUCT = 'create_product',
   UPLOAD_IMAGES = 'upload_images',
   LINK_CATEGORY = 'link_category',
+  LINK_RELATED_PRODUCTS = 'link_related_products',
   CREATE_ATTRIBUTES = 'create_attributes',
 }
 
@@ -74,7 +76,18 @@ export class ProductCreateSaga {
       if (createProductDto.category) {
         category = await this.linkCategoryStep(
           product.id,
-          createProductDto.category.id,
+          createProductDto.category[0].id,
+          sagaLog,
+        );
+      }
+      if (
+        createProductDto.relatedProductsToAdd?.length > 0 ||
+        createProductDto.relatedProductsToRemove?.length > 0
+      ) {
+        await this.linkRelatedProductsStep(
+          product.id,
+          createProductDto.relatedProductsToAdd ?? [],
+          createProductDto.relatedProductsToRemove ?? [],
           sagaLog,
         );
       }
@@ -98,7 +111,6 @@ export class ProductCreateSaga {
         attributes: createProductDto.attributes,
         category,
       };
-      
     } catch (error) {
       this.logger.error(`Saga ${sagaId} failed: ${error.message}`);
       sagaLog.status = 'failed';
@@ -126,7 +138,9 @@ export class ProductCreateSaga {
         .insert(ProductTable)
         .values({
           name: createProductDto.name,
-          slug: createProductDto.slug || slugify(createProductDto.name, { lower: true }),
+          slug:
+            createProductDto.slug ||
+            slugify(createProductDto.name, { lower: true }),
           isFeatured: createProductDto.isFeatured,
           price: createProductDto.price,
           currency: createProductDto.currency,
@@ -182,6 +196,52 @@ export class ProductCreateSaga {
       step.data = { imageIds: images.map((img) => img.cloudinaryId) };
       step.completedAt = new Date();
       return images;
+    } catch (error) {
+      step.status = 'failed';
+      step.error = error.message;
+      step.completedAt = new Date();
+      throw error;
+    }
+  }
+
+  private async linkRelatedProductsStep(
+    productId: string,
+    linkRelatedProductIds: string[],
+    unlinkRelatedProductIds: string[],
+    sagaLog: SagaLog,
+  ) {
+    const step: SagaStep = {
+      name: SagaStepName.LINK_RELATED_PRODUCTS,
+      status: 'pending',
+      startedAt: new Date(),
+    };
+
+    sagaLog.steps.push(step);
+
+    try {
+      if (linkRelatedProductIds.length > 0)
+        await this.drizzleService.db.insert(RelatedProductTable).values(
+          linkRelatedProductIds.map((relatedProductId) => ({
+            productId,
+            relatedProductId,
+          })),
+        );
+
+      if (unlinkRelatedProductIds.length > 0)
+        await this.drizzleService.db
+          .delete(RelatedProductTable)
+          .where(
+            and(
+              eq(RelatedProductTable.productId, productId),
+              inArray(
+                RelatedProductTable.relatedProductId,
+                unlinkRelatedProductIds,
+              ),
+            ),
+          );
+
+      step.status = 'completed';
+      step.completedAt = new Date();
     } catch (error) {
       step.status = 'failed';
       step.error = error.message;

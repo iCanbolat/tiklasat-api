@@ -51,10 +51,6 @@ export class ParseProductImagesInterceptor implements NestInterceptor {
       delete req.body.cloudinaryIds;
     }
 
-    if (req.body.imagesToDelete && !Array.isArray(req.body.imagesToDelete)) {
-      req.body.imagesToDelete = [req.body.imagesToDelete];
-    }
-
     return next.handle();
   }
 }

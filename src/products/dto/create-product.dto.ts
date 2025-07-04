@@ -122,6 +122,20 @@ export class CreateProductDto {
   @IsString({ each: true })
   cloudinaryIds?: string[];
 
+  @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  relatedProductsToAdd?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  relatedProductsToRemove?: string[];
+
   @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
   @IsArray()
@@ -163,7 +177,7 @@ export class CreateProductDto {
   @ValidateNested()
   @Type(() => CategoryDto)
   @Transform(({ value }) => JSON.parse(value))
-  category?: CategoryDto;
+  category?: CategoryDto[];
 
   @IsOptional()
   @IsArray()

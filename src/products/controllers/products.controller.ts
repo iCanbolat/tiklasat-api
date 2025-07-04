@@ -10,6 +10,7 @@ import {
   Query,
   UseInterceptors,
   UploadedFiles,
+  UsePipes,
 } from '@nestjs/common';
 import { ProductsService } from '../providers/products.service';
 import { CreateProductDto } from '../dto/create-product.dto';
@@ -23,8 +24,9 @@ import {
 } from '@nestjs/swagger';
 import { GetProductsDto } from '../dto/get-products.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { FilesValidationPipe } from './pipes/multi-image-upload.pipe';
 import { ParseProductImagesInterceptor } from '../parse-product-images.interceptor';
+import { FilesValidationPipe } from 'src/common/pipes/multi-image-upload.pipe';
+import { FormArrayTransformPipe } from 'src/common/pipes/form-array-transform.pipe';
 
 @Controller('products')
 export class ProductsController {
@@ -48,6 +50,8 @@ export class ProductsController {
     @Body() createProductDto: CreateProductDto,
     @UploadedFiles(FilesValidationPipe) files?: Express.Multer.File[],
   ) {
+    console.log(createProductDto);
+
     return this.productsService.create(createProductDto, files);
   }
 
@@ -69,10 +73,14 @@ export class ProductsController {
   @HttpCode(200)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FilesInterceptor('files'), ParseProductImagesInterceptor)
+  @UsePipes(new FormArrayTransformPipe(UpdateProductDto))
   update(
-    @Body() updateDto: UpdateProductDto | UpdateProductDto[],
+    @Body()
+    updateDto: UpdateProductDto[],
     @UploadedFiles(FilesValidationPipe) files?: Express.Multer.File[],
   ) {
+    console.log(updateDto);
+    
     return this.productsService.update(updateDto);
   }
 

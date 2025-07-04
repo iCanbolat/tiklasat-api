@@ -10,6 +10,7 @@ import {
 import {
   ProductImageTable,
   ProductVariantTable,
+  RelatedProductTable,
 } from 'src/database/schemas/products.schema';
 import { and, eq, gte, ilike, inArray, lte, or, sql, SQL } from 'drizzle-orm';
 import { CategoriesService } from 'src/categories/categories.service';
@@ -365,17 +366,11 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     return query;
   }
 
-  async update(
-    dto: UpdateProductDto | UpdateProductDto[],
-  ): Promise<ProductResponseDto | ProductResponseDto[]> {
-    if (Array.isArray(dto)) {
-      const results = await Promise.all(
-        dto.map((item) => this.updateSingle(item.id, item)),
-      );
-      return results;
-    }
-
-    return this.updateSingle(dto.id, dto);
+  async update(dtos: UpdateProductDto[]): Promise<ProductResponseDto[]> {
+    const results = await Promise.all(
+      dtos.map((dto) => this.updateSingle(dto.id, dto)),
+    );
+    return results;
   }
 
   async updateSingle(
@@ -388,6 +383,8 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       productIdsToUnlink,
       images,
       imagesToDelete,
+      relatedProductsToAdd,
+      relatedProductsToRemove,
       ...rest
     } = updateProductDto;
 
@@ -409,15 +406,37 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
         .where(eq(ProductTable.id, id))
         .returning();
 
-      if (category) {
+      if (category?.length > 0) {
         await this.categoryService.updateOrCreateCategoryWithProducts(
-          category.id,
+          category[0].id,
           {
             productIdsToLink,
             productIdsToUnlink,
           },
         );
       }
+
+      if (relatedProductsToAdd?.length > 0) {
+        const values = relatedProductsToAdd.map((relatedProductId) => ({
+          productId: id,
+          relatedProductId,
+        }));
+
+        await this.drizzleService.db
+          .insert(RelatedProductTable)
+          .values(values)
+          .onConflictDoNothing();
+      }
+
+      if (relatedProductsToRemove?.length > 0)
+        await this.drizzleService.db
+          .delete(RelatedProductTable)
+          .where(
+            inArray(
+              RelatedProductTable.relatedProductId,
+              relatedProductsToRemove,
+            ),
+          );
 
       if (imagesToDelete?.length > 0) {
         await tx

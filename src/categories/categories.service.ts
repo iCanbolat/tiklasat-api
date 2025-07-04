@@ -256,11 +256,14 @@ export class CategoriesService {
       where: (categories, { eq }) => eq(categories.id, categoryId),
     });
 
-    const slug = slugify(category.name, { lower: true });
+    console.log(category);
+    
 
     if (category) {
       return category;
     }
+
+    const slug = slugify(category.name, { lower: true });
 
     return await this.create({
       name: category.name,
