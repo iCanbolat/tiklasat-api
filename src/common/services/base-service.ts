@@ -22,7 +22,8 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   protected abstract findAll<F>(filters: F): any;
 
-  protected abstract findOne(id: string): any;
+  // ✅ Default implementation: optional to override
+  protected findOne(id: string): any {}
 
   protected abstract create(data: any, files?: any): any;
 
@@ -32,9 +33,7 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   protected abstract applyFilters?<F>(query: any, filters: F): any;
 
-  protected abstract applyPaginateJoins?(
-    query: PgSelectBase<any, any, any>,
-  ): any;
+  protected applyPaginateJoins?(query: PgSelectBase<any, any, any>): any;
 
   async getPaginatedResult(
     filters: any,

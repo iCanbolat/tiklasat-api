@@ -7,6 +7,7 @@ import {
   boolean,
 } from 'drizzle-orm/pg-core';
 import { pgEnum } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 
 export const NotificationTypeEnum = pgEnum('notification_type', [
   'ORDER',
@@ -15,6 +16,9 @@ export const NotificationTypeEnum = pgEnum('notification_type', [
   'PAYMENT',
   'SYSTEM',
 ]);
+
+export const NotificationEnum = z.enum(NotificationTypeEnum.enumValues);
+export type NotificationEnumType = z.infer<typeof NotificationEnum>;
 
 export const NotificationTable = pgTable('notifications', {
   id: uuid('id').primaryKey().defaultRandom(),
