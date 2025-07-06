@@ -7,6 +7,7 @@ import {
 } from './categories.schema';
 import { customerRelations, CustomerTable } from './customer-details.schema';
 import { GuestTable } from './guests.schema';
+import { NotificationTable } from './notifications.schema';
 import { orderItemRelations, OrderItemTable } from './order-items.schema';
 import { orderRelations, OrderTable } from './orders.schema';
 import { paymentRelations, PaymentTable } from './payments.schema';
@@ -48,10 +49,11 @@ export const databaseSchema = {
   addresses: AddressTable,
   wishLists: WishlistTable,
   guestsTable: GuestTable,
-  wishListRelations: wishListRelations,
   customerDetails: CustomerTable,
   relatedProducts: RelatedProductTable,
+  notifications: NotificationTable,
   ProductSagaLogTable: ProductSagaLogTable,
+  wishListRelations: wishListRelations,
   relatedProductRelations: relatedProductRelations,
   customerRelations: customerRelations,
   addressRelations: addressRelations,

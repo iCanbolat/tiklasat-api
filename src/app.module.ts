@@ -9,6 +9,7 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MailModule } from './mail/mail.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import paymentConfig from './payments/config/payment.config';
 
 @Module({
@@ -46,6 +47,7 @@ import paymentConfig from './payments/config/payment.config';
     PaymentsModule,
     MailModule,
     CloudinaryModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [],
