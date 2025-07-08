@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsOptional,
   IsBoolean,
@@ -10,11 +10,6 @@ import {
   NotificationEnum,
   NotificationEnumType,
 } from 'src/database/schemas/notifications.schema';
-
-export enum NotificationOrderEnum {
-  ASC = 'asc',
-  DESC = 'desc',
-}
 
 export class GetNotificationsDto {
   @IsOptional()
@@ -33,14 +28,18 @@ export class GetNotificationsDto {
 
   @IsOptional()
   @IsBoolean()
-  @Type(() => Boolean)
+  @Transform(
+    ({ value }) => {
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      return undefined;
+    },
+    { toClassOnly: true },
+  )
   isRead?: boolean;
 
   @IsOptional()
-  @IsEnum(NotificationOrderEnum)
-  orderByDate?: NotificationOrderEnum = NotificationOrderEnum.DESC;
-
-  @IsOptional()
-  @IsEnum(NotificationEnum.Enum)
-  type?: NotificationEnumType;
+  @IsEnum(NotificationEnum.enum, { each: true })
+  @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
+  types?: NotificationEnumType[];
 }

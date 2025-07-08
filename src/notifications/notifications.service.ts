@@ -3,12 +3,9 @@ import { DrizzleService } from 'src/database/drizzle.service';
 import { NotificationTable } from 'src/database/schemas/notifications.schema';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { NotificationsGateway } from './notifications.gateway';
-import {
-  GetNotificationsDto,
-  NotificationOrderEnum,
-} from './dto/findall-notification.dto';
+import { GetNotificationsDto } from './dto/findall-notification.dto';
 import { AbstractCrudService } from 'src/common/services/base-service';
-import { and, asc, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, eq, ilike, inArray, or } from 'drizzle-orm';
 
 @Injectable()
 export class NotificationsService extends AbstractCrudService<
@@ -51,8 +48,9 @@ export class NotificationsService extends AbstractCrudService<
   protected delete(id: string) {
     throw new Error('Method not implemented.');
   }
+
   protected async applyFilters(query: any, filters: GetNotificationsDto) {
-    const { isRead, orderByDate, type, search } = filters;
+    const { isRead, types, search } = filters;
 
     const conditions = [];
 
@@ -65,24 +63,16 @@ export class NotificationsService extends AbstractCrudService<
       );
     }
 
-    if (isRead) {
+    if (isRead !== undefined) {
       conditions.push(eq(NotificationTable.isRead, isRead));
     }
 
-    if (type) {
-      conditions.push(eq(NotificationTable.type, type));
+    if (types) {
+      conditions.push(inArray(NotificationTable.type, types));
     }
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
-    }
-
-    if (orderByDate === NotificationOrderEnum.ASC) {
-      query = query.orderBy(asc(NotificationTable.createdAt));
-    } else if (orderByDate === NotificationOrderEnum.DESC) {
-      query = query.orderBy(desc(NotificationTable.createdAt));
-    } else {
-      query = query.orderBy(desc(NotificationTable.createdAt));
     }
 
     return query;

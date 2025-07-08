@@ -9,11 +9,13 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { GetNotificationsDto } from './dto/findall-notification.dto';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
+  @Public()
   @Get()
   findAll(@Query() query: GetNotificationsDto) {
     return this.notificationsService.findAll(query);

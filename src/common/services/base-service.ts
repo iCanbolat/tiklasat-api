@@ -22,7 +22,6 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   protected abstract findAll<F>(filters: F): any;
 
-  // ✅ Default implementation: optional to override
   protected findOne(id: string): any {}
 
   protected abstract create(data: any, files?: any): any;
@@ -79,7 +78,8 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
       .select({ count: countDistinct(this.table.id) })
       .from(this.table);
 
-    countQuery = this.applyPaginateJoins(countQuery);
+    if (this.applyPaginateJoins)
+      countQuery = this.applyPaginateJoins(countQuery);
 
     const query = this.applyFilters(countQuery, filters);
 
