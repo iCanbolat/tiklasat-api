@@ -6,6 +6,8 @@ import { NotificationsGateway } from './notifications.gateway';
 import { GetNotificationsDto } from './dto/findall-notification.dto';
 import { AbstractCrudService } from 'src/common/services/base-service';
 import { and, eq, ilike, inArray, or } from 'drizzle-orm';
+import { MarkNotificationsReadDto } from './dto/update-notification.dto';
+import { DeleteNotificationsDto } from './dto/delete-notification.dto';
 
 @Injectable()
 export class NotificationsService extends AbstractCrudService<
@@ -47,6 +49,54 @@ export class NotificationsService extends AbstractCrudService<
   }
   protected delete(id: string) {
     throw new Error('Method not implemented.');
+  }
+
+  async markNotificationsAsRead(dto: MarkNotificationsReadDto) {
+    const { ids, all } = dto;
+
+    if (all) {
+      await this.drizzleService.db
+        .update(NotificationTable)
+        .set({ isRead: true })
+        .execute();
+
+      return { message: 'All notifications marked as read' };
+    }
+
+    if (ids && ids.length > 0) {
+      await this.drizzleService.db
+        .update(NotificationTable)
+        .set({ isRead: true })
+        .where(inArray(NotificationTable.id, ids))
+        .execute();
+
+      return { message: `Marked ${ids.length} notifications as read` };
+    }
+
+    throw new Error(
+      'Provide either "all" or "ids" to mark notifications as read',
+    );
+  }
+
+  async deleteNotifications(dto: DeleteNotificationsDto) {
+    const { ids, all } = dto;
+
+    if (all) {
+      await this.drizzleService.db.delete(NotificationTable).execute();
+
+      return { message: 'All notifications deleted' };
+    }
+
+    if (ids && ids.length > 0) {
+      await this.drizzleService.db
+        .delete(NotificationTable)
+        .where(inArray(NotificationTable.id, ids))
+        .execute();
+
+      return { message: `Deleted ${ids.length} notifications` };
+    }
+
+    throw new Error('Provide either "all" or "ids" to delete notifications');
   }
 
   protected async applyFilters(query: any, filters: GetNotificationsDto) {

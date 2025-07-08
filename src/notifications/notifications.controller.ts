@@ -3,13 +3,14 @@ import {
   Get,
   Body,
   Patch,
-  Param,
   Delete,
   Query,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { GetNotificationsDto } from './dto/findall-notification.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
+import { MarkNotificationsReadDto } from './dto/update-notification.dto';
+import { DeleteNotificationsDto } from './dto/delete-notification.dto';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -21,13 +22,13 @@ export class NotificationsController {
     return this.notificationsService.findAll(query);
   }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateNotificationDto: any) {
-  //   return this.notificationsService.update(+id, updateNotificationDto);
-  // }
+  @Patch('mark-read')
+  async markRead(@Body() dto: MarkNotificationsReadDto) {
+    return this.notificationsService.markNotificationsAsRead(dto);
+  }
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.notificationsService.remove(+id);
-  // }
+  @Delete()
+  async delete(@Body() dto: DeleteNotificationsDto) {
+    return this.notificationsService.deleteNotifications(dto);
+  }
 }
