@@ -5,11 +5,13 @@ import {
   Patch,
   Delete,
   Query,
+  Param,
+  BadRequestException,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { GetNotificationsDto } from './dto/findall-notification.dto';
 import { Public } from 'src/auth/decorators/public.decorator';
-import { MarkNotificationsReadDto } from './dto/update-notification.dto';
+import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { DeleteNotificationsDto } from './dto/delete-notification.dto';
 
 @Controller('notifications')
@@ -22,11 +24,26 @@ export class NotificationsController {
     return this.notificationsService.findAll(query);
   }
 
-  @Patch('mark-read')
-  async markRead(@Body() dto: MarkNotificationsReadDto) {
-    return this.notificationsService.markNotificationsAsRead(dto);
+  @Public()
+  @Patch(':id?')
+  async markRead(
+    @Body() updateNotificationDto: UpdateNotificationDto,
+    @Param('id') id?: string,
+  ) {
+    if (updateNotificationDto.all) {
+      return this.notificationsService.markAllAsRead();
+    }
+
+    if (!id) {
+      throw new BadRequestException(
+        'Notification ID is required if not using all flag',
+      );
+    }
+
+    return this.notificationsService.markAsRead(id);
   }
 
+  @Public()
   @Delete()
   async delete(@Body() dto: DeleteNotificationsDto) {
     return this.notificationsService.deleteNotifications(dto);

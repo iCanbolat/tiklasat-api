@@ -1,17 +1,10 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsArray, IsUUID, IsBoolean } from 'class-validator';
+import { IsOptional, IsBoolean } from 'class-validator';
 
-export class MarkNotificationsReadDto {
-  @ApiPropertyOptional({
-    type: [String],
-    description: 'Notification IDs to mark as read',
-  })
+export class UpdateNotificationDto {
   @IsOptional()
-  @IsArray()
-  @IsUUID('all', { each: true })
-  ids?: string[];
+  @IsBoolean()
+  isRead?: boolean;
 
-  @ApiPropertyOptional({ description: 'Mark all notifications as read' })
   @IsOptional()
   @IsBoolean()
   all?: boolean;

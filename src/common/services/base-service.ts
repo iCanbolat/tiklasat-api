@@ -30,7 +30,11 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
 
   protected abstract delete(id: string): any;
 
-  protected abstract applyFilters?<F>(query: any, filters: F): any;
+  protected abstract applyFilters?<F>(
+    query: any,
+    filters: F,
+    skipOrderBy?: boolean,
+  ): any;
 
   protected applyPaginateJoins?(query: PgSelectBase<any, any, any>): any;
 
@@ -81,7 +85,7 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
     if (this.applyPaginateJoins)
       countQuery = this.applyPaginateJoins(countQuery);
 
-    const query = this.applyFilters(countQuery, filters);
+    const query = this.applyFilters(countQuery, filters, true);
 
     const [{ count } = { count: 0 }] = await query;
 

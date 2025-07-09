@@ -28,10 +28,3 @@ export class CreateNotificationDto {
   @IsBoolean()
   isRead?: boolean;
 }
-
-export class UpdateNotificationDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  isRead?: boolean;
-}
