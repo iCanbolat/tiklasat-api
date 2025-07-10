@@ -44,8 +44,18 @@ export class NotificationsController {
   }
 
   @Public()
-  @Delete()
-  async delete(@Body() dto: DeleteNotificationsDto) {
-    return this.notificationsService.deleteNotifications(dto);
+  @Delete(':id?')
+  async delete(@Body() dto: DeleteNotificationsDto, @Param('id') id?: string) {
+    if (dto.all) {
+      return this.notificationsService.deleteNotifications();
+    }
+
+    if (!id) {
+      throw new BadRequestException(
+        'Notification ID is required if not using all flag',
+      );
+    }
+
+    return this.notificationsService.delete(id);
   }
 }

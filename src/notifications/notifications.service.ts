@@ -46,9 +46,6 @@ export class NotificationsService extends AbstractCrudService<
       pagination: paginatedResults.pagination,
     };
   }
-  protected delete(id: string) {
-    throw new Error('Method not implemented.');
-  }
   async markAsRead(id: string) {
     const [notification] = await this.drizzleService.db
       .update(NotificationTable)
@@ -69,25 +66,18 @@ export class NotificationsService extends AbstractCrudService<
     return { message: 'All notifications marked as read' };
   }
 
-  async deleteNotifications(dto: DeleteNotificationsDto) {
-    const { ids, all } = dto;
+  async delete(id: string) {
+    await this.drizzleService.db
+      .delete(NotificationTable)
+      .where(eq(NotificationTable.id, id))
+      .execute();
+    return { message: `Deleted  notification: ${id}` };
+  }
 
-    if (all) {
-      await this.drizzleService.db.delete(NotificationTable).execute();
+  async deleteNotifications() {
+    await this.drizzleService.db.delete(NotificationTable).execute();
 
-      return { message: 'All notifications deleted' };
-    }
-
-    if (ids && ids.length > 0) {
-      await this.drizzleService.db
-        .delete(NotificationTable)
-        .where(inArray(NotificationTable.id, ids))
-        .execute();
-
-      return { message: `Deleted ${ids.length} notifications` };
-    }
-
-    throw new Error('Provide either "all" or "ids" to delete notifications');
+    return { message: 'All notifications deleted' };
   }
 
   protected async applyFilters(
