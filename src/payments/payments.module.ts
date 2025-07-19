@@ -9,7 +9,7 @@ import { MailModule } from 'src/mail/mail.module';
 import { ProductsModule } from 'src/products/products.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { OrdersModule } from 'src/orders/orders.module';
-import { PaymentListener } from 'src/common/listeners/payment.listener';
+import { PaymentListener } from 'src/payments/providers/payment.listener';
 
 @Module({
   imports: [
@@ -48,7 +48,7 @@ import { PaymentListener } from 'src/common/listeners/payment.listener';
     PaymentsService,
     StripePaymentStrategy,
     IyzicoPaymentStrategy,
-    PaymentListener
+    PaymentListener,
   ],
   exports: [IyzicoPaymentStrategy, StripePaymentStrategy],
 })

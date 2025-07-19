@@ -3,7 +3,7 @@ import { CustomerService } from '../providers/customer.service';
 import { Public } from '../decorators/public.decorator';
 import { ApiBody, ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { AddressDto } from '../dto/customer/create-address.dto';
-import { GetUserId } from '../decorators/get-user.decorator';
+import { CookieUser } from '../decorators/cookie-user.decorator';
 
 @Controller('customer')
 export class CustomerController {
@@ -23,8 +23,8 @@ export class CustomerController {
   // })
   async createAddress(
     @Body() addressDto: AddressDto,
-    @GetUserId() userId: string,
+    @CookieUser() user: { id: string },
   ) {
-    return await this.createAddress(addressDto, userId);
+    // return await this.customerService.createCustomerAddress(addressDto, user.id);
   }
 }

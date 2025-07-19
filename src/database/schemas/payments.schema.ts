@@ -35,6 +35,7 @@ export const PaymentTable = pgTable('payments', {
   orderId: uuid('order_id').references(() => OrderTable.id, {
     onDelete: 'cascade',
   }),
+  // .unique(),
   userId: uuid('user_id').references(() => CustomerTable.userId, {
     onDelete: 'cascade',
   }),
@@ -48,6 +49,7 @@ export const PaymentTable = pgTable('payments', {
   cardFamily: text('card_family').notNull(),
   installments: integer('installments').default(1),
   paymentId: varchar('payment_id'),
+  conversationId: varchar('conversation_id').notNull(),
   lastFourDigits: varchar('last_four_digits', { length: 4 }).notNull(),
   status: PaymentStatusEnum('payment_status')
     .default(PaymentStatus.Enum.PENDING)

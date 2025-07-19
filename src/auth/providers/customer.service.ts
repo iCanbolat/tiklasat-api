@@ -5,7 +5,10 @@ import { CustomerTable } from 'src/database/schemas/customer-details.schema';
 import { AddressTable } from 'src/database/schemas/addresses.schema';
 import { GuestTable } from 'src/database/schemas/guests.schema';
 import { Address } from 'src/common/types';
-import { OrderTable } from 'src/database/schemas/orders.schema';
+import {
+  OrderStatusType,
+  OrderTable,
+} from 'src/database/schemas/orders.schema';
 import {
   Customer,
   CustomerIdentifier,
@@ -19,7 +22,7 @@ export class CustomerService {
 
   async findOrCreate(identifier: CustomerIdentifier): Promise<Customer> {
     if (identifier.userId) {
-      const details = await this.findOrCreateUserDetails(identifier.userId);
+      const details = await this.findOrCreateUserDetails(identifier);
       return this.buildCustomerResponse(details, 'user', identifier);
     } else {
       const details = await this.findOrCreateGuestDetails(
@@ -39,7 +42,6 @@ export class CustomerService {
 
     console.log('CustomerServiceAddress:', address);
     console.log('CustomerServiceCustomer:', customer);
-    
 
     if (!address.id) {
       [{ id }] = await this.drizzleService.db
@@ -73,55 +75,166 @@ export class CustomerService {
     return id;
   }
 
-  async findOne(
-    customerId: string,
-    type: CustomerType,
-  ): Promise<Customer | null> {
-    const query = this.drizzleService.db
-      .select()
-      .from(type === 'user' ? CustomerTable : GuestTable)
-      .where(
-        type === 'user'
-          ? eq(CustomerTable.userId, customerId)
-          : eq(GuestTable.id, customerId),
-      )
-      .$dynamic();
+  // async findOne(
+  //   customerId: string,
+  //   type: CustomerType,
+  // ): Promise<Customer | null> {
+  //   let query = this.drizzleService.db
+  //     .select()
+  //     .from(type === 'user' ? CustomerTable : GuestTable)
+  //     .where(
+  //       type === 'user'
+  //         ? eq(CustomerTable.userId, customerId)
+  //         : eq(GuestTable.id, customerId),
+  //     )
+  //     .$dynamic();
 
-    if (type === 'user') {
-      query.innerJoin(UserTable, eq(UserTable.id, CustomerTable.userId));
+  //   if (type === 'user') {
+  //     query.innerJoin(UserTable, eq(UserTable.id, CustomerTable.userId));
+  //   }
+
+  //   const result = await query.execute();
+
+  //   return result[0] ? this.transformToCustomer(result[0], type) : null;
+  // }
+
+  async findOne(
+    identifier: string,
+    type: CustomerType,
+    opts: {
+      includeUser?: boolean;
+      includeAddresses?: boolean;
+      includeOrders?: boolean;
+      includeOrderDetails?: boolean;
+    } = {},
+  ) {
+    const withMap: any = {};
+
+    if (type === 'user' && opts.includeUser) {
+      withMap.user = true;
+    }
+    if (opts.includeAddresses) {
+      withMap.addresses = true;
+    }
+    if (opts.includeOrders) {
+      withMap.orders = {
+        with: opts.includeOrderDetails
+          ? {
+              billingAddress: true,
+              shippingAddress: true,
+              items: true,
+              payment: true,
+            }
+          : {},
+      };
     }
 
-    const result = await query.execute();
+    let row: any;
 
-    return result[0] ? this.transformToCustomer(result[0], type) : null;
+    if (type === 'user') {
+      row = await this.drizzleService.db.query.customerDetails.findFirst({
+        where: (c, { eq }) => eq(c.userId, identifier),
+        with: withMap,
+      });
+    } else {
+      // guest
+      row = await this.drizzleService.db.query.guestsTable.findFirst({
+        where: (g, { eq }) => eq(g.email, identifier),
+        with: {
+          ...withMap,
+          orders: opts.includeOrders
+            ? {
+                with: opts.includeOrderDetails
+                  ? {
+                      billingAddress: true,
+                      shippingAddress: true,
+                      items: true,
+                      payment: true,
+                    }
+                  : {},
+              }
+            : undefined,
+        },
+      });
+    }
+
+    if (!row) return null;
+
+    return this.transformToCustomer(row, type, opts);
   }
 
-  private transformToCustomer(data: any, type: CustomerType): Customer {
-    const base = {
-      id: type === 'user' ? data.userId : data.id,
+  private transformToCustomer(
+    row: any,
+    type: 'user' | 'guest',
+    opts: {
+      includeUser?: boolean;
+      includeAddresses?: boolean;
+      includeOrders?: boolean;
+      includeOrderDetails?: boolean;
+    },
+  ): any {
+    const base: any = {
+      id: type === 'user' ? row.userId : row.id,
       type,
-      email: data.email,
-      phone: data.phone,
+      name: type === 'user' ? row.user?.name : row.name,
+      email: type === 'user' ? row.user?.email : row.email,
     };
 
-    if (type === 'user') {
-      return {
-        ...base,
-        // loyaltyPoints: data.loyaltyPoints,
-        // totalSpent: data.totalSpent,
-        // other user-specific fields
-      };
-    } else {
-      return base;
+    if (opts.includeAddresses) {
+      base.addresses = row.addresses;
     }
+    if (type === 'user') {
+      base.loyaltyPoints = row.loyaltyPoints;
+      base.totalOrders = row.totalOrders;
+      base.totalSpent = row.totalSpent;
+    }
+    if (opts.includeOrders) {
+      base.orders = row.orders.map((o: any) => {
+        const orderDTO: any = {
+          id: o.id,
+          status: o.status as OrderStatusType,
+          createdAt: o.createdAt,
+        };
+        if (opts.includeOrderDetails) {
+          orderDTO.billingAddress = o.billingAddress;
+          orderDTO.shippingAddress = o.shippingAddress;
+          orderDTO.items = o.items;
+          orderDTO.payment = o.payment;
+        }
+        return orderDTO;
+      });
+    }
+
+    return base as any;
   }
+
+  // private transformToCustomer(data: any, type: CustomerType): Customer {
+  //   const base = {
+  //     id: type === 'user' ? data.userId : data.id,
+  //     type,
+  //     email: data.email,
+  //     phone: data.phone,
+  //     identityNo: data.identityNo,
+  //   };
+
+  //   if (type === 'user') {
+  //     return {
+  //       ...base,
+  //       // loyaltyPoints: data.loyaltyPoints,
+  //       // totalSpent: data.totalSpent,
+  //       // other user-specific fields
+  //     };
+  //   } else {
+  //     return base;
+  //   }
+  // }
 
   async prepareAddressData(
     addresses: Address[],
     customer: Customer,
     orderId: string,
   ) {
-    const addressIds: string[] = [];    
+    const addressIds: string[] = [];
 
     for (const address of addresses) {
       const addressId = await this.createCustomerAddress(
@@ -132,7 +245,7 @@ export class CustomerService {
     }
 
     const addressStrings = addresses.map((address) => {
-      return `${address.street}, ${address.state}/${address.city}, ${address.country}, ${address.zipCode}`;
+      return `${address.street}, ${address.state}/${address.city}, ${address.country}, ${address?.zipCode ?? ''}`;
     });
 
     return {
@@ -141,21 +254,31 @@ export class CustomerService {
     };
   }
 
-  private async findOrCreateUserDetails(userId: string) {
-    let customer = await this.drizzleService.db
-      .select()
-      .from(CustomerTable)
-      .where(eq(CustomerTable.userId, userId))
-      .execute();
+  private async findOrCreateUserDetails(identifier: CustomerIdentifier) {
+    const { userId, guestId, ...rest } = identifier;
 
-    if (!customer[0]) {
-      customer = await this.drizzleService.db
+    // let customer = await this.drizzleService.db
+    //   .select()
+    //   .from(CustomerTable)
+    //   .where(eq(CustomerTable.userId, userId))
+    //   .execute();
+    const customer = await this.findOne(userId, 'user', { includeUser: true });
+
+    if (!customer) {
+      await this.drizzleService.db
         .insert(CustomerTable)
         .values({ userId })
         .returning();
     }
 
-    return customer[0];
+    await this.drizzleService.db
+      .update(UserTable)
+      .set({
+        ...rest,
+      })
+      .where(eq(UserTable.id, userId));
+
+    return this.findOne(userId, 'user', { includeUser: true });
   }
 
   private async findOrCreateGuestDetails(
@@ -163,20 +286,22 @@ export class CustomerService {
     phone: string,
     name: string,
   ) {
-    let guest = await this.drizzleService.db
-      .select()
-      .from(GuestTable)
-      .where(eq(GuestTable.email, email))
-      .execute();
+    // let guest = await this.drizzleService.db
+    //   .select()
+    //   .from(GuestTable)
+    //   .where(eq(GuestTable.email, email))
+    //   .execute();
 
-    if (!guest[0]) {
-      guest = await this.drizzleService.db
+    const guest = await this.findOne(email, 'guest');
+
+    if (!guest) {
+      await this.drizzleService.db
         .insert(GuestTable)
         .values({ email, phone, name })
         .returning();
     }
 
-    return guest[0];
+    return await this.findOne(email, 'guest');
   }
 
   private buildCustomerResponse(
@@ -187,11 +312,13 @@ export class CustomerService {
     return {
       id: type === 'user' ? details.userId : details.id,
       type,
+      name: details.name,
       email: identifier.email,
       phone: identifier.phone,
+      identityNo: details?.identityNo ?? '11111111111',
       ...(type === 'user' && {
-        loyaltyPoints: details.loyaltyPoints || 0,
-        totalSpent: details.totalSpent || 0,
+        loyaltyPoints: details?.loyaltyPoints ?? 0,
+        totalSpent: details?.totalSpent ?? 0,
       }),
     };
   }

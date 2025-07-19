@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { MailService } from 'src/mail/mail.service';
 import { OrdersService } from 'src/orders/orders.service';
-import { PaymentSuccessEvent } from '../events/payment-success.event';
+import { PaymentSuccessEvent } from '../../common/events/payment-success.event';
 import { PaymentsService } from 'src/payments/providers/payments.service';
 import { CustomerService } from 'src/auth/providers/customer.service';
 import {
@@ -26,17 +26,17 @@ export class PaymentListener {
   @OnEvent('payment.success')
   async handlePaymentSuccess({ orderData }: PaymentSuccessEvent) {
     try {
-      const { paymentId, items, address, email } = orderData;
+      const { paymentId, items, address, email, orderNumber } = orderData;
 
       const payment = await this.paymentService.update(
         paymentId,
         PaymentStatus.Enum.COMPLETED,
       );
 
-      // console.log('PaymentListenerORderData:', orderData);
+      console.log('PaymentListenerORderData:', orderData);
 
       await this.orderService.update(payment.orderId, {
-        status: OrderStatus.Enum.CONFIRMED,
+        status: OrderStatus.Enum.PROCESSING,
         addressIds: address.map((addr) => addr.id),
       });
 
@@ -46,7 +46,7 @@ export class PaymentListener {
         total: payment.total,
         billingAddress: address.at(0),
         shippingAddress: address.at(1),
-        orderId: payment.orderId,
+        orderId: orderNumber,
       });
 
       this.logger.log(`Order created successfully for user: `);

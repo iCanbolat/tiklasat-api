@@ -5,7 +5,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { BasePaymentDto } from './base-payment.dto';
+import { IyzicoBaseDto } from './base-payment.dto';
 import { Type } from 'class-transformer';
 import * as Iyzipay from 'iyzipay';
 
@@ -51,7 +51,7 @@ class SavedPaymentCard {
   consumerToken: string;
 }
 
-export class IyzicoThreeDSPaymentDto extends BasePaymentDto {
+export class IyzicoThreeDSPaymentDto extends IyzicoBaseDto {
   @ValidateNested()
   @Type(() => PaymentCardDto || SavedPaymentCard)
   paymentCard: PaymentCardDto | SavedPaymentCard;

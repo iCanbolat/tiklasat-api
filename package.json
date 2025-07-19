@@ -38,6 +38,7 @@
     "class-validator": "^0.14.1",
     "cloudinary": "^2.6.1",
     "cookie-parser": "^1.4.7",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "drizzle-kit": "^0.22.2",
     "drizzle-orm": "^0.31.1",

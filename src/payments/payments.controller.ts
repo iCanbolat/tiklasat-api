@@ -10,6 +10,7 @@ import {
   Headers,
   Req,
   RawBodyRequest,
+  BadRequestException,
 } from '@nestjs/common';
 import { PaymentsService } from './providers/payments.service';
 // import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -20,7 +21,11 @@ import { PaymentProvider } from './payments.enum';
 import { ThreeDSValidationPipe } from './pipes/threeds-validation.pipe';
 import { StripeRefundDto } from './dto/stripe/stripe-refund.dto';
 import { Request } from 'express';
-import { GetUserId } from 'src/auth/decorators/get-user.decorator';
+import { CookieUser } from 'src/auth/decorators/cookie-user.decorator';
+import { CheckoutFormRetrieveRequest } from './dto/checkout-retrieve-req.dto';
+import { BaseInitCheckoutDto } from './dto/base-payment.dto';
+import { StripeInitCheckoutDto } from './dto/stripe/stripe-init-checkout.dto';
+import { IyzicoInitCheckoutDto } from './dto/iyzico/iyzico-init-checkout.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -30,26 +35,30 @@ export class PaymentsController {
   @Post('checkout-form-retrieve')
   checkoutFormRetrieve(
     @Req() request: Request,
-    @Body('token') token: string,
-    @Body('provider') provider: PaymentProvider,
-    @GetUserId() userId?: string,
+    @Body() checkoutFormRetrieveRequest: CheckoutFormRetrieveRequest,
+    @CookieUser() user?: { id: string },
   ) {
+    if (user) checkoutFormRetrieveRequest.userId = user.id;
+
     return this.paymentsService.getCheckoutFormPaymentResult(
-      provider,
-      token,
+      checkoutFormRetrieveRequest,
       request.ip,
-      userId,
     );
   }
 
   @Public()
   @Post('init-checkout-form')
-  @UsePipes(ProviderValidationPipe)
   initCheckoutForm(
-    @Body() checkoutInitDto: any,
+    @Body(new ProviderValidationPipe())
+    checkoutInitDto: StripeInitCheckoutDto & IyzicoInitCheckoutDto,
+    @CookieUser() user?: { id: string },
   ): Promise<{ token?: string; paymentUrl: string }> {
-    const { provider, ...rest } = checkoutInitDto;
-    return this.paymentsService.createCheckoutFormSession(provider, rest);
+    if (user) checkoutInitDto.userId = user.id;
+
+    return this.paymentsService.createCheckoutFormSession(
+      checkoutInitDto.provider,
+      checkoutInitDto,
+    );
   }
 
   @Public()

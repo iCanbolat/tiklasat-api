@@ -14,7 +14,7 @@ import { PaymentProvider } from '../payments.enum';
 @Injectable()
 export class ProviderValidationPipe implements PipeTransform {
   async transform(value: any) {
-    if (!value.provider) {
+    if (!value?.provider) {
       throw new BadRequestException('Provider is required');
     }
 

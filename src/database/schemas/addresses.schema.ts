@@ -15,7 +15,9 @@ export const AddressTable = pgTable('addresses', {
   userId: uuid('customer_id').references(() => CustomerTable.userId, {
     onDelete: 'cascade',
   }),
-  guestId: uuid('guest_id').references(() => GuestTable.id, { onDelete: 'cascade' }), // ✅ Guests
+  guestId: uuid('guest_id').references(() => GuestTable.id, {
+    onDelete: 'cascade',
+  }), // ✅ Guests
   orderId: uuid('order_id').references((): AnyPgColumn => OrderTable.id, {
     onDelete: 'cascade',
   }),
@@ -28,10 +30,24 @@ export const AddressTable = pgTable('addresses', {
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
 });
 
+// export const addressRelations = relations(AddressTable, ({ one }) => ({
+//   customer: one(CustomerTable, {
+//     fields: [AddressTable.userId],
+//     references: [CustomerTable.userId],
+//   }),
+//   order: one(OrderTable, {
+//     fields: [AddressTable.orderId],
+//     references: [OrderTable.id],
+//   }),
+// }));
 export const addressRelations = relations(AddressTable, ({ one }) => ({
   customer: one(CustomerTable, {
     fields: [AddressTable.userId],
     references: [CustomerTable.userId],
+  }),
+  guest: one(GuestTable, {
+    fields: [AddressTable.guestId],
+    references: [GuestTable.id],
   }),
   order: one(OrderTable, {
     fields: [AddressTable.orderId],

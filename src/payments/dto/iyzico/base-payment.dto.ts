@@ -9,6 +9,7 @@ import {
   IsEmail,
   IsOptional,
 } from 'class-validator';
+import { BaseInitCheckoutDto } from '../base-payment.dto';
 
 export class BasketItemDto {
   @IsString()
@@ -81,6 +82,9 @@ export class IyzıcoAddressDto {
   city: string;
 
   @IsString()
+  state: string;
+
+  @IsString()
   country: string;
 
   @IsString()
@@ -91,13 +95,14 @@ export class IyzıcoAddressDto {
   zipCode?: string;
 }
 
-export class BasePaymentDto {
+export class IyzicoBaseDto extends BaseInitCheckoutDto {
   @IsEnum(Iyzipay.LOCALE)
   @IsOptional()
   locale: keyof typeof Iyzipay.LOCALE;
 
+  @IsOptional()
   @IsString()
-  conversationId: string;
+  conversationId?: string;
 
   @IsString()
   price: string;

@@ -6,7 +6,7 @@ import {
   productsToCategoriesRelations,
 } from './categories.schema';
 import { customerRelations, CustomerTable } from './customer-details.schema';
-import { GuestTable } from './guests.schema';
+import { guestRelations, GuestTable } from './guests.schema';
 import { NotificationTable } from './notifications.schema';
 import { orderItemRelations, OrderItemTable } from './order-items.schema';
 import { orderRelations, OrderTable } from './orders.schema';
@@ -23,7 +23,7 @@ import {
   RelatedProductTable,
 } from './products.schema';
 import { reviewRelations, ReviewTable } from './reviews.schema';
-import { UserTable } from './users.schema';
+import { userRelations, UserTable } from './users.schema';
 import { wishListRelations, WishlistTable } from './wishlists.schema';
 
 export {
@@ -56,6 +56,8 @@ export const databaseSchema = {
   wishListRelations: wishListRelations,
   relatedProductRelations: relatedProductRelations,
   customerRelations: customerRelations,
+  guestRelations: guestRelations,
+  userRelations: userRelations,
   addressRelations: addressRelations,
   productsToCategoriesRelations: productsToCategoriesRelations,
   categoryRelations: categoryRelations,

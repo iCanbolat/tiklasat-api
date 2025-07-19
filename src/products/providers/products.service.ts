@@ -135,6 +135,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     options?: {
       includeVariant?: boolean;
       select?: { product?: Partial<Record<keyof IProduct, boolean>> };
+      includeRelatedProducts?: boolean;
     },
   ): Promise<ProductResponseDto> {
     const [response] = await this.findOneProduct(
@@ -147,42 +148,53 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       throw new Error(`Product with id ${productId} not found.`);
     }
 
-    const relatedProducts = await this.drizzleService.db.query.relatedProducts
-      .findMany({
-        where: (rp) => eq(rp.productId, response.product.id),
-        with: {
-          targetProduct: {
-            columns: {
-              id: true,
-              name: true,
-              stockQuantity: true,
-              price: true,
-              isFeatured: true,
-              status: true,
-              sku: true,
-            },
+    let structuredResponse: ProductResponseDto = {
+      product: {
+        ...response.product,
+        attributes: response.attributes ?? [],
+        images: response.images ?? [],
+        category: response.category,
+      },
+    };
+
+    if (options?.includeRelatedProducts)
+      structuredResponse.relatedProducts =
+        await this.drizzleService.db.query.relatedProducts
+          .findMany({
+            where: (rp) => eq(rp.productId, response.product.id),
             with: {
-              categories: {
+              targetProduct: {
+                columns: {
+                  id: true,
+                  name: true,
+                  stockQuantity: true,
+                  price: true,
+                  isFeatured: true,
+                  status: true,
+                  sku: true,
+                },
                 with: {
-                  category: {
-                    columns: { id: true, name: true, slug: true },
+                  categories: {
+                    with: {
+                      category: {
+                        columns: { id: true, name: true, slug: true },
+                      },
+                    },
                   },
+                  images: true,
                 },
               },
-              images: true,
             },
-          },
-        },
-      })
-      .then((rows) =>
-        rows.map((row) => ({
-          ...row.targetProduct,
-          categories: row.targetProduct.categories.map((pc) => pc.category),
-        })),
-      );
+          })
+          .then((rows) =>
+            rows.map((row) => ({
+              ...row.targetProduct,
+              categories: row.targetProduct.categories.map((pc) => pc.category),
+            })),
+          );
 
     if (options?.includeVariant) {
-      const variants = await this.findOneProduct(productId, true, {
+      structuredResponse.variants = await this.findOneProduct(productId, true, {
         product: {
           id: true,
           name: true,
@@ -190,35 +202,16 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
           price: true,
           stockQuantity: true,
         },
-      });
-
-      const structuredResponse = {
-        product: {
-          ...response.product,
-          attributes: response.attributes ?? [],
-          images: response.images ?? [],
-          category: response.category,
-        },
-        variants: variants?.map((row) => ({
+      }).then((res) =>
+        res.map((row) => ({
           ...row.product,
           attributes: row.attributes ?? [],
           images: row.images ?? [],
         })),
-        relatedProducts,
-      };
-
-      return structuredResponse;
+      );
     }
 
-    return {
-      product: {
-        ...response.product,
-        attributes: response.attributes ?? [],
-        images: response.images ?? [],
-        category: response.category,
-      },
-      relatedProducts,
-    };
+    return structuredResponse;
   }
 
   private async findOneProduct(

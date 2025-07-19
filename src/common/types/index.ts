@@ -1,6 +1,10 @@
 import { PaymentCardType } from '@codingwithmanny/iyzipay-js/_dist/_types/types/models';
+import { Customer, CustomerType } from 'src/auth/interfaces/customer.types';
 import { OrderStatusType } from 'src/database/schemas/orders.schema';
-import { PaymentCard, SavedPaymentCard } from 'src/payments/interfaces/iyzico.type';
+import {
+  PaymentCard,
+  SavedPaymentCard,
+} from 'src/payments/interfaces/iyzico.type';
 import {
   IProduct,
   IProductAttributes,
@@ -52,8 +56,11 @@ export interface IOrderInstanceDto {
   userId?: string;
   status: OrderStatusType;
   total: number | string;
-  buyer: Buyer;
+  buyer: Buyer & { id: string; type: CustomerType };
   address: Address[];
+  billingAddressString?: string;
+  shippingAddressString?: string;
   items: OrderItem[];
   paymentCard?: PaymentCard | SavedPaymentCard;
+  conversationId: string;
 }

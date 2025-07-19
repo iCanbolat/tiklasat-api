@@ -7,6 +7,7 @@ export class PaymentSuccessEvent {
       paymentId: string;
       address: Address[];
       email: string;
+      orderNumber: string;
     },
   ) {}
 }

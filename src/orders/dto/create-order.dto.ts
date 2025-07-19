@@ -10,66 +10,15 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-  OrderStatusEnum,
+  OrderStatus,
   OrderStatusType,
 } from 'src/database/schemas/orders.schema';
 
-export class ProductImagesDto {
-  @IsString()
-  url: string;
-}
-
-export class ProductAttributesDto {
-  @IsString()
-  variantType: string;
-
-  @IsString()
-  value: string;
-}
-
-export class ProductDto {
-  @IsUUID()
-  id: string;
-
-  @IsString()
-  name: string;
-
-  @IsString()
-  slug: string;
-
-  @IsNumber()
-  price: number;
-
-  @IsString()
-  currency: string;
-
-  @IsOptional()
-  @IsString()
-  parentId?: string;
-
-  @IsInt()
-  stockQuantity: number;
-
-  @IsString()
-  description: string;
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProductAttributesDto)
-  attributes: ProductAttributesDto[];
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProductImagesDto)
-  images: ProductImagesDto[];
-}
-
 export class CreateOrderDto {
-  @IsUUID()
-  // @IsOptional()
-  customer: { id: string; type: 'user' | 'guest' };
+  @IsOptional()
+  customer?: { id: string; type: 'user' | 'guest' };
 
-  @IsEnum(OrderStatusEnum.enumValues)
+  @IsEnum(OrderStatus)
   @IsOptional()
   status?: OrderStatusType;
 
@@ -87,7 +36,6 @@ export class OrderItemDto {
   @IsInt()
   quantity: number;
 
-  @ValidateNested()
-  @Type(() => ProductDto)
-  product: ProductDto;
+  @IsUUID()
+  productId: string;
 }

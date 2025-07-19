@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   text,
   pgTable,
@@ -8,6 +8,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
+import { CustomerTable } from './customer-details.schema';
 
 const UserRoleStatusEnum = pgEnum('user_role_status', ['ADMIN', 'USER']);
 
@@ -26,6 +27,13 @@ export const UserTable = pgTable('users', {
     () => new Date(),
   ),
 });
+
+export const userRelations = relations(UserTable, ({ one }) => ({
+  customer: one(CustomerTable, {
+    fields: [UserTable.id],
+    references: [CustomerTable.userId],
+  }),
+}));
 
 export type SelectUser = typeof UserTable.$inferSelect;
 export type InsertUser = typeof UserTable.$inferInsert;

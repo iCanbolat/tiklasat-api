@@ -9,6 +9,7 @@ import {
   IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { BaseInitCheckoutDto } from '../base-payment.dto';
 
 enum PaymentMode {
   PAYMENT = 'payment',
@@ -59,9 +60,9 @@ class LineItem {
   quantity: number;
 }
 
-export class StripeInitCheckoutDto {
-  @IsString()
-  provider: string;
+export class StripeInitCheckoutDto extends BaseInitCheckoutDto {
+  // @IsString()
+  // provider: string;
 
   @IsNotEmpty()
   @IsEnum(PaymentMode)

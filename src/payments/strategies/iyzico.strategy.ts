@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  BasketItem,
   CheckoutFormResult,
   IProvider,
 } from '../interfaces/payment-strategy.interface';
@@ -17,26 +18,33 @@ import { OrderStatus } from 'src/database/schemas/orders.schema';
 import { PaymentCardType } from 'src/database/schemas/payments.schema';
 import { OrdersService } from 'src/orders/orders.service';
 import { IyzicoStatusEnum, IyzicoWebhookData } from '../interfaces/iyzico.type';
+import { CustomerService } from 'src/auth/providers/customer.service';
+import { BaseInitCheckoutDto } from '../dto/base-payment.dto';
 
 @Injectable()
 export class IyzicoPaymentStrategy implements IProvider {
   private iyzipay: Iyzipay;
   private orderInstanceDto: IOrderInstanceDto = {
-    status: OrderStatus.Values.PLACED,
+    status: OrderStatus.Values.PENDING,
     total: 0,
     buyer: {
+      id: '',
+      type: 'user',
       name: '',
       email: '',
       phone: '',
     },
     address: [],
     items: [],
+    conversationId: '',
   };
 
   constructor(
     @Inject('IyzicoConfig') private readonly iyzicoConfig,
     private readonly productService: ProductsService,
     private readonly orderService: OrdersService,
+    private customerService: CustomerService,
+
     private eventEmitter: EventEmitter2,
   ) {
     this.iyzipay = new Iyzipay({
@@ -72,11 +80,12 @@ export class IyzicoPaymentStrategy implements IProvider {
         case IyzicoStatusEnum.SUCCESS:
           this.eventEmitter.emit('payment.success', {
             orderData: {
-              paymentId: webhookData.iyziPaymentId,
+              orderNumber: webhookData.paymentConversationId,
               items: this.orderInstanceDto.items,
               address: this.orderInstanceDto.address,
               total: this.orderInstanceDto.total,
               email: this.orderInstanceDto.buyer.email,
+              paymentId: webhookData.iyziPaymentId
             },
           });
           console.log('Payment successful:', webhookData.iyziPaymentId);
@@ -136,7 +145,9 @@ export class IyzicoPaymentStrategy implements IProvider {
   }
 
   async createCheckoutFormSession(
-    checkoutInitDto: Iyzipay.ThreeDSInitializePaymentRequestData,
+    checkoutInitDto: Iyzipay.ThreeDSInitializePaymentRequestData &
+      BaseInitCheckoutDto,
+    orderNumber: string,
   ): Promise<{ token: string; paymentUrl: string }> {
     const adresses = [
       checkoutInitDto.billingAddress,
@@ -152,18 +163,48 @@ export class IyzicoPaymentStrategy implements IProvider {
           type: idx === 0 ? AddressTypeEnum.BILLING : AddressTypeEnum.SHIPPING,
           city: address.city,
           country: address.country,
+          state: address.state,
           street: address.address,
           zipCode: address.zipCode,
         };
       })
       .filter(Boolean);
 
+    const customer = await this.customerService.findOrCreate({
+      email: checkoutInitDto.buyer.email,
+      identityNo: checkoutInitDto.buyer.identityNumber,
+      userId: checkoutInitDto.userId,
+      name: checkoutInitDto.buyer.name,
+      phone: checkoutInitDto.buyer.gsmNumber,
+    });
+
+    console.log('Customer Created', customer);
+
+    checkoutInitDto.buyer.id = customer.id;
+    checkoutInitDto.buyer.identityNumber = customer.identityNo;
+
+    await this.orderService.update(checkoutInitDto.orderId, { customer });
+
+    const { addressStrings } = await this.customerService.prepareAddressData(
+      formattedAddresses,
+      customer,
+      checkoutInitDto.orderId,
+    );
+
+    this.orderInstanceDto.billingAddressString = addressStrings.at(0);
+    this.orderInstanceDto.shippingAddressString = addressStrings.at(1);
+
     this.orderInstanceDto.address = formattedAddresses;
     this.orderInstanceDto.buyer = {
       email: checkoutInitDto.buyer.email,
       name: checkoutInitDto.buyer.name + ' ' + checkoutInitDto.buyer.surname,
       phone: checkoutInitDto.buyer.gsmNumber,
+      id: customer.id,
+      type: customer.type,
     };
+
+    this.orderInstanceDto.conversationId = orderNumber;
+    checkoutInitDto.conversationId = orderNumber;
 
     try {
       return new Promise((resolve, reject) => {
@@ -199,16 +240,16 @@ export class IyzicoPaymentStrategy implements IProvider {
       },
     );
 
-    return this.buildSessionResponse(result)
+    return this.buildSessionResponse(result);
   }
 
   private async buildSessionResponse(
     result: Iyzipay.CheckoutFormRetrieveResult,
-  ) {
-    const basketItems: { id: string; quantity: number }[] = Object.values(
+  ): Promise<CheckoutFormResult> {
+    const basketItems: BasketItem[] = Object.values(
       result.itemTransactions.reduce((acc, item) => {
         if (!acc[item.itemId]) {
-          acc[item.itemId] = { id: item.itemId, quantity: 0 };
+          acc[item.itemId] = { productId: item.itemId, quantity: 0 };
         }
         acc[item.itemId].quantity += 1;
         return acc;
@@ -217,8 +258,9 @@ export class IyzicoPaymentStrategy implements IProvider {
 
     const orderItems = await Promise.all(
       basketItems.map(async (item) => {
-        const product = await this.productService.findOne(item.id, {
+        const product = await this.productService.findOne(item.productId, {
           select: { product: { id: true, name: true, price: true } },
+          includeRelatedProducts: false,
         });
         return {
           ...product,
@@ -232,11 +274,9 @@ export class IyzicoPaymentStrategy implements IProvider {
     this.orderInstanceDto.items = orderItems;
 
     return {
-      buyer: {
-        name: this.orderInstanceDto.buyer.name,
-        email: this.orderInstanceDto.buyer?.email,
-        phone: this.orderInstanceDto.buyer?.phone,
-      },
+      buyer: this.orderInstanceDto.buyer,
+      billingAddress: this.orderInstanceDto.billingAddressString,
+      shippingAddress: this.orderInstanceDto.shippingAddressString,
       total: result.paidPrice,
       cardFamily: result.cardFamily,
       cardType: result.cardType as PaymentCardType,
@@ -244,13 +284,12 @@ export class IyzicoPaymentStrategy implements IProvider {
       lastFourDigits: result.lastFourDigits,
       paymentId: result.paymentId,
       addresses: this.orderInstanceDto.address,
-      items: orderItems,
+      items: basketItems,
+      orderNumber: this.orderInstanceDto.conversationId,
     };
   }
 
-  async getThreeDSPaymentResult(
-    paymentId: string,
-  ): Promise<any> {
+  async getThreeDSPaymentResult(paymentId: string): Promise<any> {
     const result = await new Promise((resolve, reject) => {
       this.iyzipay.threedsPayment.create({ paymentId }, (err, result) => {
         if (err) reject(err);

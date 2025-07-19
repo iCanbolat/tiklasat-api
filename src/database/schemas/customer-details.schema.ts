@@ -33,10 +33,18 @@ export const CustomerTable = pgTable('customer_details', {
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
 });
 
+// export const customerRelations = relations(CustomerTable, ({ one, many }) => ({
+//   user: one(UserTable, {
+//     fields: [CustomerTable.userId],
+//     references: [UserTable.id],
+//   }),
+//   orders: many(OrderTable),
+// }));
 export const customerRelations = relations(CustomerTable, ({ one, many }) => ({
   user: one(UserTable, {
     fields: [CustomerTable.userId],
     references: [UserTable.id],
   }),
   orders: many(OrderTable),
+  addresses: many(AddressTable),
 }));

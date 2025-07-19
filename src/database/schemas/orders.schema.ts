@@ -5,6 +5,7 @@ import {
   uuid,
   pgEnum,
   AnyPgColumn,
+  varchar,
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { PaymentTable } from './payments.schema';
@@ -14,12 +15,11 @@ import { AddressTable } from './addresses.schema';
 import { GuestTable } from './guests.schema';
 
 export const OrderStatusEnum = pgEnum('order_status', [
-  'PLACED',
-  'CONFIRMED',
+  'PENDING',
+  'PROCESSING',
   'SHIPPED',
   'DELIVERED',
   'CANCELLED',
-  'RETURNED',
 ]);
 
 export const OrderStatus = z.enum(OrderStatusEnum.enumValues);
@@ -39,17 +39,43 @@ export const OrderTable = pgTable('orders', {
   shippingAddressId: uuid('shipping_address_id')
     .references((): AnyPgColumn => AddressTable.id, { onDelete: 'set null' })
     .default(null),
-  status: OrderStatusEnum('status').default(OrderStatus.Enum.PLACED).notNull(),
+  status: OrderStatusEnum('status').default(OrderStatus.Enum.PENDING).notNull(),
+  orderNumber: varchar('order_number', { length: 30 })
+    .notNull()
+    .default(
+      sql`'ORD-' || to_char(CURRENT_DATE, 'YYMMDD') || '-' || nextval('order_number_seq')::text`,
+    ),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).$onUpdate(
     () => new Date(),
   ),
 });
 
-export const orderRelations = relations(OrderTable, ({ many, one }) => ({
+// export const orderRelations = relations(OrderTable, ({ many, one }) => ({
+//   customer: one(CustomerTable, {
+//     fields: [OrderTable.userId],
+//     references: [CustomerTable.userId],
+//   }),
+//   billingAddress: one(AddressTable, {
+//     fields: [OrderTable.billingAddressId],
+//     references: [AddressTable.id],
+//   }),
+//   shippingAddress: one(AddressTable, {
+//     fields: [OrderTable.shippingAddressId],
+//     references: [AddressTable.id],
+//   }),
+//   items: many(OrderItemTable),
+//   payment: one(PaymentTable),
+// }));
+
+export const orderRelations = relations(OrderTable, ({ one, many }) => ({
   customer: one(CustomerTable, {
     fields: [OrderTable.userId],
     references: [CustomerTable.userId],
+  }),
+  guest: one(GuestTable, {
+    fields: [OrderTable.guestId],
+    references: [GuestTable.id],
   }),
   billingAddress: one(AddressTable, {
     fields: [OrderTable.billingAddressId],

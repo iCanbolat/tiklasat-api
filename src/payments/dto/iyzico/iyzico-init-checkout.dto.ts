@@ -1,7 +1,7 @@
 import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
-import { BasePaymentDto } from './base-payment.dto';
+import { IyzicoBaseDto } from './base-payment.dto';
 
-export class IyzicoInitCheckoutDto extends BasePaymentDto {
+export class IyzicoInitCheckoutDto extends IyzicoBaseDto {
   @IsString()
   callbackUrl: string;
 
