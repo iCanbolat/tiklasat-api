@@ -10,6 +10,7 @@ import { validate } from 'class-validator';
 import { StripeInitCheckoutDto } from '../dto/stripe/stripe-init-checkout.dto';
 import { IyzicoInitCheckoutDto } from '../dto/iyzico/iyzico-init-checkout.dto';
 import { PaymentProvider } from '../payments.enum';
+import { StripeCheckoutDTO } from '../dto/stripe/stripe.dto';
 
 @Injectable()
 export class ProviderValidationPipe implements PipeTransform {
@@ -24,7 +25,7 @@ export class ProviderValidationPipe implements PipeTransform {
         dtoClass = IyzicoInitCheckoutDto;
         break;
       case PaymentProvider.STRIPE:
-        dtoClass = StripeInitCheckoutDto;
+        dtoClass = StripeCheckoutDTO;
         break;
 
       default:

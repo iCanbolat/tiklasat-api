@@ -26,24 +26,24 @@ export class PaymentListener {
   @OnEvent('payment.success')
   async handlePaymentSuccess({ orderData }: PaymentSuccessEvent) {
     try {
-      const { paymentId, items, address, email, orderNumber } = orderData;
+      const { items, address, email, orderNumber, orderId, total } = orderData;
 
-      const payment = await this.paymentService.update(
-        paymentId,
+      await this.paymentService.update(
+        { orderId },
         PaymentStatus.Enum.COMPLETED,
       );
 
       console.log('PaymentListenerORderData:', orderData);
 
-      await this.orderService.update(payment.orderId, {
+      await this.orderService.update(orderId, {
         status: OrderStatus.Enum.PROCESSING,
-        addressIds: address.map((addr) => addr.id),
+        // addressIds: address.map((addr) => addr.id),
       });
 
       await this.mailService.sendPaymentReceipt({
         email,
         items,
-        total: payment.total,
+        total,
         billingAddress: address.at(0),
         shippingAddress: address.at(1),
         orderId: orderNumber,
@@ -58,11 +58,11 @@ export class PaymentListener {
   @OnEvent('payment.failure')
   async handlePaymentFailure({ orderData }: PaymentSuccessEvent) {
     try {
-      const { paymentId } = orderData;
+      const { orderId } = orderData;
 
-      await this.paymentService.update(paymentId, PaymentStatus.Enum.FAILED);
+      await this.paymentService.update({ orderId }, PaymentStatus.Enum.FAILED);
 
-      this.logger.log(`Payment failed for order: ${paymentId}`);
+      this.logger.log(`Payment failed for order: ${orderId}`);
     } catch (error) {
       this.logger.error(`Payment failure handling failed: ${error.message}`);
     }

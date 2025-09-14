@@ -3,7 +3,7 @@ import { Buyer } from 'src/common/types';
 export type CustomerIdentifier = Buyer & {
   userId?: string;
   guestId?: string;
-  identityNo: string;
+  identityNo?: string;
 };
 
 export type CustomerType = 'guest' | 'user';

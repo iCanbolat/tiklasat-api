@@ -104,8 +104,9 @@ export class IyzicoBaseDto extends BaseInitCheckoutDto {
   @IsString()
   conversationId?: string;
 
+  @IsOptional()
   @IsString()
-  price: string;
+  price?: string;
 
   @IsEnum(Iyzipay.CURRENCY)
   currency: keyof typeof Iyzipay.CURRENCY;
@@ -113,8 +114,9 @@ export class IyzicoBaseDto extends BaseInitCheckoutDto {
   @IsEnum(Iyzipay.PAYMENT_GROUP)
   paymentGroup: keyof typeof Iyzipay.PAYMENT_GROUP;
 
+  @IsOptional()
   @IsString()
-  paidPrice: string;
+  paidPrice?: string;
 
   @IsOptional()
   @IsString()
@@ -132,8 +134,9 @@ export class IyzicoBaseDto extends BaseInitCheckoutDto {
   @Type(() => IyzıcoAddressDto)
   billingAddress: IyzıcoAddressDto;
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BasketItemDto)
-  basketItems: BasketItemDto[];
+  basketItems?: BasketItemDto[];
 }

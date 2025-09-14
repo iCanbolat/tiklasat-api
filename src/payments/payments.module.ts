@@ -10,6 +10,7 @@ import { ProductsModule } from 'src/products/products.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { OrdersModule } from 'src/orders/orders.module';
 import { PaymentListener } from 'src/payments/providers/payment.listener';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
@@ -19,6 +20,10 @@ import { PaymentListener } from 'src/payments/providers/payment.listener';
     ProductsModule,
     AuthModule,
     OrdersModule,
+    CacheModule.register({
+      ttl: 300, // 5 minutes cache
+      max: 2000, // max 2000 cached orders
+    }),
   ],
   controllers: [PaymentsController],
   providers: [

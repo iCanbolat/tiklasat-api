@@ -16,10 +16,14 @@ import { eq, sql } from 'drizzle-orm';
 import { CustomerService } from 'src/auth/providers/customer.service';
 import { OrdersService } from 'src/orders/orders.service';
 import { Address } from 'src/common/types';
-import { PaymentStatusType } from 'src/database/schemas/payments.schema';
+import {
+  PaymentStatus,
+  PaymentStatusType,
+} from 'src/database/schemas/payments.schema';
 import { OrderStatus } from 'src/database/schemas/orders.schema';
 import { CheckoutFormRetrieveRequest } from '../dto/checkout-retrieve-req.dto';
 import { IyzicoInitCheckoutDto } from '../dto/iyzico/iyzico-init-checkout.dto';
+import { BaseInitCheckoutDto } from '../dto/base-payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -62,23 +66,32 @@ export class PaymentsService {
       .execute();
   }
 
-  async update(iyziPaymentId: string, status: PaymentStatusType) {
+  async update(
+    { paymentId, orderId }: { paymentId?: string; orderId?: string },
+    status: PaymentStatusType,
+  ) {
+    console.log('order update service', paymentId, orderId, status);
+
+    const whereCondition = paymentId
+      ? eq(PaymentTable.paymentId, paymentId)
+      : eq(PaymentTable.orderId, orderId);
+
     return await this.drizzleService.db
       .update(PaymentTable)
       .set({ status })
-      .where(sql`${PaymentTable.paymentId} = ${iyziPaymentId}`)
+      .where(whereCondition)
       .returning({
-        orderId: PaymentTable.orderId,
         total: PaymentTable.amount,
       })
       .then((res) => res[0]);
   }
 
   async createCheckoutFormSession(
-    provider: PaymentProvider,
-    checkoutInitDto: IyzicoInitCheckoutDto,
+    checkoutInitDto: BaseInitCheckoutDto,
   ): Promise<{ token?: string; paymentUrl: string }> {
-    const strategy = this.getPaymentProvider(provider);
+    const strategy = this.getPaymentProvider(checkoutInitDto.provider);
+
+    // Check if order already has a payment
     const isExistingOrderPayment =
       await this.drizzleService.db.query.payments.findFirst({
         where: (p) => eq(p.orderId, checkoutInitDto.orderId),
@@ -89,15 +102,39 @@ export class PaymentsService {
         `This order has already payment process : ${isExistingOrderPayment.conversationId}`,
       );
 
-    const order = await this.drizzleService.db.query.orders.findFirst({
+    // Get the basic order info first to validate
+    const orderBasicInfo = await this.drizzleService.db.query.orders.findFirst({
       where: (item) => eq(item.id, checkoutInitDto.orderId),
     });
 
-    if (!order) throw new BadRequestException('Order does not exists.');
+    if (!orderBasicInfo) {
+      throw new BadRequestException('Order does not exist.');
+    }
+
+    if (orderBasicInfo.status !== OrderStatus.Values.PENDING) {
+      throw new BadRequestException('Order is not in pending status.');
+    }
+
+    await this.drizzleService.db
+      .insert(PaymentTable)
+      .values({
+        amount: '0',
+        cardType: 'CREDIT_CARD',
+        cardFamily: '',
+        conversationId: '',
+        lastFourDigits: '',
+        currency: 'USD',
+        orderId: orderBasicInfo.id,
+        installments: 1,
+        paymentId: '',
+        status: PaymentStatus.Values.PENDING,
+        ip: '',
+      })
+      .returning({ id: PaymentTable.id });
 
     return await strategy.createCheckoutFormSession(
       checkoutInitDto,
-      order.orderNumber,
+      orderBasicInfo.orderNumber,
     );
   }
 
@@ -112,9 +149,9 @@ export class PaymentsService {
 
     console.log('getCheckoutFormPaymentResult', result);
 
-    const [{ paymentCreatedAt }] = await this.drizzleService.db
-      .insert(PaymentTable)
-      .values({
+    const response = await this.drizzleService.db
+      .update(PaymentTable)
+      .set({
         amount: String(result.total),
         cardFamily: result.cardFamily,
         cardType: result.cardType,
@@ -127,13 +164,18 @@ export class PaymentsService {
         orderId,
         ip,
       })
+      .where(eq(PaymentTable.orderId, orderId))
       .returning({ paymentCreatedAt: PaymentTable.createdAt });
+
+    if (provider === PaymentProvider.STRIPE && 'clearOrderCache' in strategy) {
+      await (strategy as any).clearOrderCache(orderId);
+    }
 
     return {
       orderNumber: result.orderNumber,
       email: result.buyer.email,
       name: result.buyer.name,
-      paymentCreatedAt,
+      paymentCreatedAt: response[0].paymentCreatedAt,
       total: result.total,
       billingAddress: result.billingAddress,
       shippingAddress: result.shippingAddress,

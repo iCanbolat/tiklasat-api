@@ -36,7 +36,7 @@
             <tr>
               <td>{{this.product.name}}</td>
               <td>{{this.quantity}}</td>
-              <td>${{this.price}}</td>
+              <td>${{this.product.price}}</td>
             </tr>
           {{/each}}
         </tbody>
@@ -51,20 +51,12 @@
       <div class='address-section'>
         <h3>Billing Address</h3>
         <p>
-          {{billingAddress.street}}<br />
-          {{billingAddress.city}},
-          {{billingAddress.state}}
-          {{billingAddress.zipCode}}<br />
-          {{billingAddress.country}}
+          {{billingAddress}}<br />
         </p>
 
         <h3>Shipping Address</h3>
         <p>
-          {{shippingAddress.street}}<br />
-          {{shippingAddress.city}},
-          {{shippingAddress.state}}
-          {{shippingAddress.zipCode}}<br />
-          {{shippingAddress.country}}
+          {{shippingAddress}}<br />
         </p>
       </div>
 

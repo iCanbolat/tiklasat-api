@@ -292,16 +292,16 @@ export class CustomerService {
     //   .where(eq(GuestTable.email, email))
     //   .execute();
 
-    const guest = await this.findOne(email, 'guest');
+    let guest = await this.findOne(email, 'guest');
 
     if (!guest) {
-      await this.drizzleService.db
+      guest = await this.drizzleService.db
         .insert(GuestTable)
         .values({ email, phone, name })
         .returning();
     }
 
-    return await this.findOne(email, 'guest');
+    return guest;
   }
 
   private buildCustomerResponse(
@@ -383,5 +383,23 @@ export class CustomerService {
     await this.subtractPoints(customerId, pointsToRedeem);
 
     return discountAmount;
+  }
+
+  async cleanupOldGuestAddresses(daysOld: number = 30): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    const deletedAddresses = await this.drizzleService.db
+      .delete(AddressTable)
+      .where(
+        sql`${AddressTable.guestId} IS NOT NULL 
+            AND ${AddressTable.createdAt} < ${cutoffDate}`,
+      )
+      .returning({ id: AddressTable.id });
+
+    console.log(
+      `🗑️ Cleaned up ${deletedAddresses.length} guest addresses older than ${daysOld} days`,
+    );
+    return deletedAddresses.length;
   }
 }

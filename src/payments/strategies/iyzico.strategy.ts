@@ -20,6 +20,7 @@ import { OrdersService } from 'src/orders/orders.service';
 import { IyzicoStatusEnum, IyzicoWebhookData } from '../interfaces/iyzico.type';
 import { CustomerService } from 'src/auth/providers/customer.service';
 import { BaseInitCheckoutDto } from '../dto/base-payment.dto';
+import { DrizzleService } from 'src/database/drizzle.service';
 
 @Injectable()
 export class IyzicoPaymentStrategy implements IProvider {
@@ -44,7 +45,7 @@ export class IyzicoPaymentStrategy implements IProvider {
     private readonly productService: ProductsService,
     private readonly orderService: OrdersService,
     private customerService: CustomerService,
-
+    private readonly drizzleService: DrizzleService,
     private eventEmitter: EventEmitter2,
   ) {
     this.iyzipay = new Iyzipay({
@@ -53,6 +54,60 @@ export class IyzicoPaymentStrategy implements IProvider {
       uri: this.iyzicoConfig.baseUrl,
     });
   }
+  async populateOrderData(orderId: string, checkoutInitDto: any): Promise<any> {
+    const orderWithItems = await this.orderService.findOne(orderId);
+
+    if (!orderWithItems.orderItems || orderWithItems.orderItems.length === 0) {
+      throw new Error('Order has no items.');
+    }
+
+    const calculatedTotal = orderWithItems.orderItems.reduce((total, item) => {
+      return total + item.product.price * item.quantity;
+    }, 0);
+
+    const basketItems = await Promise.all(
+      orderWithItems.orderItems.map(async (item) => {
+        const productWithCategory =
+          await this.drizzleService.db.query.products.findFirst({
+            where: (product, { eq }) => eq(product.id, item.product.id),
+            with: {
+              categories: {
+                with: {
+                  category: true,
+                },
+              },
+            },
+          });
+
+        const primaryCategory =
+          productWithCategory?.categories?.[0]?.category?.name || 'General';
+
+        return {
+          id: item.product.id,
+          name: item.product.name,
+          category1: primaryCategory,
+          itemType:
+            'PHYSICAL' as keyof typeof import('iyzipay').BASKET_ITEM_TYPE,
+          price: (item.product.price * item.quantity).toFixed(2),
+        };
+      }),
+    );
+
+    checkoutInitDto.basketItems = basketItems;
+    checkoutInitDto.price = calculatedTotal.toFixed(2);
+    // checkoutInitDto.paidPrice = calculatedTotal.toFixed(2);
+
+    // Store order items in instance for webhook usage
+    this.orderInstanceDto.items = orderWithItems.orderItems;
+    // this.orderInstanceDto.total = calculatedTotal;
+
+    return {
+      basketItems,
+      calculatedTotal,
+      orderItems: orderWithItems.orderItems,
+    };
+  }
+
   getOrderData(token: string): Promise<any> {
     throw new Error('Method not implemented.');
   }
@@ -85,7 +140,7 @@ export class IyzicoPaymentStrategy implements IProvider {
               address: this.orderInstanceDto.address,
               total: this.orderInstanceDto.total,
               email: this.orderInstanceDto.buyer.email,
-              paymentId: webhookData.iyziPaymentId
+              paymentId: webhookData.iyziPaymentId,
             },
           });
           console.log('Payment successful:', webhookData.iyziPaymentId);
@@ -149,6 +204,8 @@ export class IyzicoPaymentStrategy implements IProvider {
       BaseInitCheckoutDto,
     orderNumber: string,
   ): Promise<{ token: string; paymentUrl: string }> {
+    await this.populateOrderData(checkoutInitDto.orderId, checkoutInitDto);
+
     const adresses = [
       checkoutInitDto.billingAddress,
       checkoutInitDto.shippingAddress,
@@ -246,32 +303,33 @@ export class IyzicoPaymentStrategy implements IProvider {
   private async buildSessionResponse(
     result: Iyzipay.CheckoutFormRetrieveResult,
   ): Promise<CheckoutFormResult> {
-    const basketItems: BasketItem[] = Object.values(
-      result.itemTransactions.reduce((acc, item) => {
-        if (!acc[item.itemId]) {
-          acc[item.itemId] = { productId: item.itemId, quantity: 0 };
-        }
-        acc[item.itemId].quantity += 1;
-        return acc;
-      }, {}),
-    );
+    // const basketItems: BasketItem[] = Object.values(
+    //   result.itemTransactions.reduce((acc, item) => {
+    //     if (!acc[item.itemId]) {
+    //       acc[item.itemId] = { productId: item.itemId, quantity: 0 };
+    //     }
+    //     acc[item.itemId].quantity += 1;
+    //     return acc;
+    //   }, {}),
+    // );
 
-    const orderItems = await Promise.all(
-      basketItems.map(async (item) => {
-        const product = await this.productService.findOne(item.productId, {
-          select: { product: { id: true, name: true, price: true } },
-          includeRelatedProducts: false,
-        });
-        return {
-          ...product,
-          quantity: item.quantity,
-          price: product.product.price * item.quantity,
-        };
-      }),
-    );
+    // const orderItems = await Promise.all(
+    //   basketItems.map(async (item) => {
+    //     const product = await this.productService.findOne(item.productId, {
+    //       select: { product: { id: true, name: true, price: true } },
+    //       includeRelatedProducts: false,
+    //     });
+    //     return {
+    //       ...product,
+    //       quantity: item.quantity,
+    //       price: product.product.price * item.quantity,
+    //     };
+    //   }),
+    // );
 
     this.orderInstanceDto.total = result.paidPrice;
-    this.orderInstanceDto.items = orderItems;
+    // this.orderInstanceDto.items = orderItems;
+ 
 
     return {
       buyer: this.orderInstanceDto.buyer,
@@ -284,7 +342,7 @@ export class IyzicoPaymentStrategy implements IProvider {
       lastFourDigits: result.lastFourDigits,
       paymentId: result.paymentId,
       addresses: this.orderInstanceDto.address,
-      items: basketItems,
+      items: this.orderInstanceDto.items,
       orderNumber: this.orderInstanceDto.conversationId,
     };
   }

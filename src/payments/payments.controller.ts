@@ -26,6 +26,7 @@ import { CheckoutFormRetrieveRequest } from './dto/checkout-retrieve-req.dto';
 import { BaseInitCheckoutDto } from './dto/base-payment.dto';
 import { StripeInitCheckoutDto } from './dto/stripe/stripe-init-checkout.dto';
 import { IyzicoInitCheckoutDto } from './dto/iyzico/iyzico-init-checkout.dto';
+import { StripeCheckoutDTO } from './dto/stripe/stripe.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -36,9 +37,9 @@ export class PaymentsController {
   checkoutFormRetrieve(
     @Req() request: Request,
     @Body() checkoutFormRetrieveRequest: CheckoutFormRetrieveRequest,
-    @CookieUser() user?: { id: string },
+    @CookieUser() user?: { sub: string },
   ) {
-    if (user) checkoutFormRetrieveRequest.userId = user.id;
+    if (user) checkoutFormRetrieveRequest.userId = user.sub;
 
     return this.paymentsService.getCheckoutFormPaymentResult(
       checkoutFormRetrieveRequest,
@@ -48,17 +49,16 @@ export class PaymentsController {
 
   @Public()
   @Post('init-checkout-form')
-  initCheckoutForm(
+  async initCheckoutForm(
     @Body(new ProviderValidationPipe())
-    checkoutInitDto: StripeInitCheckoutDto & IyzicoInitCheckoutDto,
-    @CookieUser() user?: { id: string },
+    checkoutInitDto: StripeCheckoutDTO & IyzicoInitCheckoutDto,
+    @CookieUser() user?: { sub: string },
   ): Promise<{ token?: string; paymentUrl: string }> {
-    if (user) checkoutInitDto.userId = user.id;
+    if (user) checkoutInitDto.userId = user.sub;
+    console.log('checkoutInitDto - cookieuser', user);
+    console.log('checkoutInitDto:', checkoutInitDto);
 
-    return this.paymentsService.createCheckoutFormSession(
-      checkoutInitDto.provider,
-      checkoutInitDto,
-    );
+    return this.paymentsService.createCheckoutFormSession(checkoutInitDto);
   }
 
   @Public()

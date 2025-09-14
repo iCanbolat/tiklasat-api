@@ -36,9 +36,11 @@ export const PaymentTable = pgTable('payments', {
     onDelete: 'cascade',
   }),
   // .unique(),
-  userId: uuid('user_id').references(() => CustomerTable.userId, {
-    onDelete: 'cascade',
-  }),
+  userId: uuid('user_id')
+    .references(() => CustomerTable.userId, {
+      onDelete: 'cascade',
+    })
+    .default(null),
   ip: varchar('ip_address').default(null),
   guestId: uuid('guest_id').references(() => GuestTable.id, {
     onDelete: 'cascade',

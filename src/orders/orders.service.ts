@@ -14,13 +14,16 @@ import { GuestTable } from 'src/database/schemas/guests.schema';
 import { PaymentTable, UserTable } from 'src/database/schemas';
 import { subDays } from 'date-fns';
 import { generateReadableOrderId } from 'src/utils/order-id-generator';
+import { AbstractCrudService } from 'src/common/services/base-service';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService extends AbstractCrudService<typeof OrderTable> {
   constructor(
-    private drizzleService: DrizzleService,
+    protected drizzleService: DrizzleService,
     private productService: ProductsService,
-  ) {}
+  ) {
+    super(drizzleService, OrderTable);
+  }
 
   async create(createOrderDto: CreateOrderDto): Promise<{ id: string }> {
     const { items, status, customer } = createOrderDto;
@@ -197,8 +200,8 @@ export class OrdersService {
         : null;
 
     return {
-      billingAddress: order.billingAddress,
-      shippingAddress: order.shippingAddress,
+      billingAddress: order?.billingAddress || '',
+      shippingAddress: order?.shippingAddress || '',
       customer,
       orderItems,
     };
@@ -286,7 +289,12 @@ export class OrdersService {
       }
     });
   }
-
+  protected delete(id: string) {
+    throw new Error('Method not implemented.');
+  }
+  protected applyFilters?<F>(query: any, filters: F, skipOrderBy?: boolean) {
+    throw new Error('Method not implemented.');
+  }
   remove(id: number) {
     return `This action removes a #${id} order`;
   }

@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenStrategy } from './strategies/refresh-token-strategy';
 import { CustomerService } from './providers/customer.service';
 import { CustomerController } from './controllers/customer.controller';
+import { AddressCleanupService } from './tasks/cleanup.task';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { CustomerController } from './controllers/customer.controller';
     JwtStrategy,
     RefreshTokenStrategy,
     CustomerService,
+    AddressCleanupService,
   ],
   controllers: [AuthController, CustomerController],
   exports: [CustomerService],

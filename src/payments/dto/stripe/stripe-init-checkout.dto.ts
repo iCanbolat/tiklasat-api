@@ -76,10 +76,11 @@ export class StripeInitCheckoutDto extends BaseInitCheckoutDto {
   @IsUrl()
   cancel_url: string;
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => LineItem)
-  line_items: LineItem[];
+  line_items?: LineItem[];
 
   @IsOptional()
   @IsArray()

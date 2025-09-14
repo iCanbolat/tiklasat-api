@@ -15,13 +15,15 @@ export interface IProvider {
     orderId?: string,
   ): Promise<{ paymentUrl: string; token?: string }>;
 
-  getOrderData(token: string): Promise<any>;
+  // getOrderData(token: string): Promise<any>;
 
   getCheckoutFormPaymentResult(token: string): Promise<CheckoutFormResult>;
 
   getThreeDSPaymentResult(token: string): Promise<any>;
 
   handleWebhook(data: any, headers: Headers): Promise<any>;
+
+  populateOrderData(orderId: string, checkoutInitDto: any): Promise<any>;
 }
 
 export type CheckoutFormResult = {
@@ -33,14 +35,16 @@ export type CheckoutFormResult = {
   lastFourDigits: string;
   paymentId?: string;
   addresses: Address[];
-  items: BasketItem[];
+  items: OrderItem[];
+  // items: BasketItem[];
   orderNumber: string;
   billingAddress: string;
   shippingAddress: string;
 };
 
 export type CheckoutFormResponse = {
-  items: BasketItem[];
+  items: OrderItem[];
+  // items: BasketItem[];
   total: number | string;
   billingAddress: string;
   shippingAddress: string;

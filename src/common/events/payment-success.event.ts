@@ -4,10 +4,12 @@ export class PaymentSuccessEvent {
   constructor(
     public readonly orderData: {
       items: OrderItem[];
-      paymentId: string;
+      paymentSessionId: string;
       address: Address[];
       email: string;
       orderNumber: string;
+      orderId: string;
+      total: number;
     },
   ) {}
 }
