@@ -15,6 +15,11 @@ import { LoyaltyService } from './providers/loyalty.service';
 import { CustomerController } from './controllers/customer.controller';
 import { LoyaltyController } from './controllers/loyalty.controller';
 import { AddressCleanupService } from './tasks/cleanup.task';
+import { RefreshTokenService } from './providers/refresh-token.service';
+import { TokenCleanupTask } from './tasks/token-cleanup.task';
+import { RateLimitMiddleware } from './middleware/rate-limit.middleware';
+import { SecurityHeadersMiddleware } from './middleware/security-headers.middleware';
+import { AuthRateLimitInterceptor } from './interceptors/auth-rate-limit.interceptor';
 
 @Module({
   imports: [
@@ -37,12 +42,17 @@ import { AddressCleanupService } from './tasks/cleanup.task';
       useClass: JwtAuthGuard,
     },
     AuthService,
+    RefreshTokenService,
     LocalStrategy,
     JwtStrategy,
     RefreshTokenStrategy,
     CustomerService,
     LoyaltyService,
     AddressCleanupService,
+    TokenCleanupTask,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+    AuthRateLimitInterceptor,
   ],
   controllers: [AuthController, CustomerController, LoyaltyController],
   exports: [CustomerService, LoyaltyService],

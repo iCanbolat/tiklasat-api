@@ -27,6 +27,9 @@ import { SignUpDto } from '../dto/sign-up.dto';
 import { SignUpResponseDto } from '../dto/sign-up-response.dto';
 import { Response as ExpressResponse } from 'express';
 import { RefreshAuthGuard } from '../guards/jwt-refresh-guard';
+import { CsrfProtected } from '../decorators/csrf-protection.decorator';
+import { UseInterceptors } from '@nestjs/common';
+import { AuthRateLimitInterceptor } from '../interceptors/auth-rate-limit.interceptor';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -37,6 +40,8 @@ export class AuthController {
   @Post('sign-in')
   @HttpCode(200)
   @UseGuards(LocalAuthGuard)
+  @UseInterceptors(AuthRateLimitInterceptor)
+  @CsrfProtected()
   @ApiOperation({
     summary: 'Sign in a user',
     description:
@@ -51,12 +56,18 @@ export class AuthController {
     @Req() request: RequestWithUser,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
-    return await this.authService.generateTokens(request.user, response);
+    return await this.authService.generateTokens(
+      request.user,
+      response,
+      request,
+    );
   }
 
   @Public()
   @Post('sign-up')
   @HttpCode(201)
+  @UseInterceptors(AuthRateLimitInterceptor)
+  @CsrfProtected()
   @ApiOperation({
     summary: 'Sign up a new user',
     description:
@@ -69,15 +80,17 @@ export class AuthController {
   })
   async signUp(
     @Body() signUpDto: SignUpDto,
+    @Req() request: RequestWithUser,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
-    return await this.authService.signUp(signUpDto, response);
+    return await this.authService.signUp(signUpDto, response, request);
   }
 
-  
   @Post('refresh')
   @UseGuards(RefreshAuthGuard)
   @HttpCode(200)
+  @UseInterceptors(AuthRateLimitInterceptor)
+  @CsrfProtected()
   @ApiOperation({
     summary: 'Generate new tokens if valid refresh token',
   })
@@ -85,7 +98,15 @@ export class AuthController {
     @Req() request: RequestWithUser,
     @Res({ passthrough: true }) response: ExpressResponse,
   ) {
-    return await this.authService.generateTokens(request.user, response);
+    const refreshToken = request.cookies?.refresh_token;
+    if (!refreshToken) {
+      throw new Error('Refresh token not found');
+    }
+    return await this.authService.refreshTokens(
+      refreshToken,
+      response,
+      request,
+    );
   }
 
   @Public()
@@ -97,8 +118,11 @@ export class AuthController {
   @ApiCreatedResponse({
     description: 'User successfully logged out',
   })
-  async logOut(@Res({ passthrough: true }) response: ExpressResponse) {
-    return this.authService.logout(response);
+  async logOut(
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) response: ExpressResponse,
+  ) {
+    return this.authService.logout(response, request, request.user?.id);
   }
 
   @Get('me')
@@ -113,5 +137,35 @@ export class AuthController {
   })
   async getMe(@Req() request: RequestWithUser) {
     return request.user;
+  }
+
+  @Get('sessions')
+  @ApiOperation({
+    summary: 'Get user active sessions',
+    description:
+      'Returns all active refresh token sessions for the current user',
+  })
+  async getSessions(@Req() request: RequestWithUser) {
+    if (!request.user?.id) {
+      throw new Error('User not authenticated');
+    }
+    return await this.authService.getUserSessions(request.user.id);
+  }
+
+  @Post('revoke-all-sessions')
+  @HttpCode(200)
+  @CsrfProtected()
+  @ApiOperation({
+    summary: 'Revoke all user sessions',
+    description: 'Revokes all active refresh tokens for security purposes',
+  })
+  async revokeAllSessions(@Req() request: RequestWithUser) {
+    if (!request.user?.id) {
+      throw new Error('User not authenticated');
+    }
+    return await this.authService.revokeAllSessions(
+      request.user.id,
+      'user_requested',
+    );
   }
 }

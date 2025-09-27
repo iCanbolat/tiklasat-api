@@ -31,6 +31,7 @@ import {
 import { reviewRelations, ReviewTable } from './reviews.schema';
 import { userRelations, UserTable } from './users.schema';
 import { wishListRelations, WishlistTable } from './wishlists.schema';
+import { RefreshTokenTable } from './refresh-tokens.schema';
 
 export {
   OrderItemTable,
@@ -60,6 +61,7 @@ export const databaseSchema = {
   discounts: DiscountTable,
   relatedProducts: RelatedProductTable,
   notifications: NotificationTable,
+  refreshTokens: RefreshTokenTable,
   ProductSagaLogTable: ProductSagaLogTable,
   wishListRelations: wishListRelations,
   relatedProductRelations: relatedProductRelations,
