@@ -1,5 +1,5 @@
 export enum PaymentProvider {
     STRIPE = 'stripe',
-    IYZICO = 'iyzico',
+    // IYZICO = 'iyzico',
   }
   

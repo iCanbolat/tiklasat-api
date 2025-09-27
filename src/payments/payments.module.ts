@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PaymentsController } from './payments.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { IyzicoPaymentStrategy } from './strategies/iyzico.strategy';
 import { StripePaymentStrategy } from './strategies/stripe.strategy';
 import { PaymentsService } from './providers/payments.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -38,12 +37,12 @@ import { CacheModule } from '@nestjs/cache-manager';
     //   }),
     //   inject: [ConfigService],
     // },
-    {
-      provide: 'IyzicoConfig',
-      useFactory: (configService: ConfigService) =>
-        configService.get('payment.iyzico'),
-      inject: [ConfigService],
-    },
+    // {
+    //   provide: 'IyzicoConfig',
+    //   useFactory: (configService: ConfigService) =>
+    //     configService.get('payment.iyzico'),
+    //   inject: [ConfigService],
+    // },
     {
       provide: 'StripeConfig',
       useFactory: (configService: ConfigService) =>
@@ -52,9 +51,8 @@ import { CacheModule } from '@nestjs/cache-manager';
     },
     PaymentsService,
     StripePaymentStrategy,
-    IyzicoPaymentStrategy,
     PaymentListener,
   ],
-  exports: [IyzicoPaymentStrategy, StripePaymentStrategy],
+  exports: [StripePaymentStrategy],
 })
 export class PaymentsModule {}

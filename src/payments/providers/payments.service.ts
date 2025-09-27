@@ -1,9 +1,8 @@
-import { BadRequestException,  Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   CheckoutFormResponse,
   IProvider,
 } from '../interfaces/payment-strategy.interface';
-import { IyzicoPaymentStrategy } from '../strategies/iyzico.strategy';
 import { StripePaymentStrategy } from '../strategies/stripe.strategy';
 
 import { PaymentProvider } from '../payments.enum';
@@ -24,9 +23,7 @@ import { BaseInitCheckoutDto } from '../dto/base-payment.dto';
 export class PaymentsService {
   constructor(
     private stripePayment: StripePaymentStrategy,
-    private iyzicoPayment: IyzicoPaymentStrategy,
     private drizzleService: DrizzleService,
-
   ) {}
 
   getPaymentProvider(provider: PaymentProvider): IProvider {
