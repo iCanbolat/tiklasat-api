@@ -7,8 +7,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
 import { PaymentProvider } from '../payments.enum';
-import { IyzicoThreeDSPaymentDto } from '../dto/iyzico/iyzico-threeds-payment.dto';
-import { StripeThreeDsPaymentDto } from '../dto/stripe/stripe-threeds.payment.dto';
+ import { StripeThreeDsPaymentDto } from '../dto/stripe/stripe-threeds.payment.dto';
 
 @Injectable()
 export class ThreeDSValidationPipe implements PipeTransform {
@@ -19,9 +18,9 @@ export class ThreeDSValidationPipe implements PipeTransform {
 
     let dtoClass;
     switch (value.provider) {
-      case PaymentProvider.IYZICO:
-        dtoClass = IyzicoThreeDSPaymentDto;
-        break;
+      // case PaymentProvider.IYZICO:
+      //   dtoClass = IyzicoThreeDSPaymentDto;
+      //   break;
       case PaymentProvider.STRIPE:
         dtoClass = StripeThreeDsPaymentDto;
         break;

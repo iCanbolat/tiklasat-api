@@ -1,28 +1,23 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException,  Injectable } from '@nestjs/common';
 import {
   CheckoutFormResponse,
   IProvider,
 } from '../interfaces/payment-strategy.interface';
 import { IyzicoPaymentStrategy } from '../strategies/iyzico.strategy';
 import { StripePaymentStrategy } from '../strategies/stripe.strategy';
-// import { CheckoutInitDto } from './dto/init-checkout-form.dto';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PaymentSuccessEvent } from '../events/payment-success.event';
+
 import { PaymentProvider } from '../payments.enum';
 import { DrizzleService } from 'src/database/drizzle.service';
 import { PaymentTable } from 'src/database/schemas';
 
 import { eq, sql } from 'drizzle-orm';
-import { CustomerService } from 'src/auth/providers/customer.service';
-import { OrdersService } from 'src/orders/orders.service';
-import { Address } from 'src/common/types';
+
 import {
   PaymentStatus,
   PaymentStatusType,
 } from 'src/database/schemas/payments.schema';
 import { OrderStatus } from 'src/database/schemas/orders.schema';
 import { CheckoutFormRetrieveRequest } from '../dto/checkout-retrieve-req.dto';
-import { IyzicoInitCheckoutDto } from '../dto/iyzico/iyzico-init-checkout.dto';
 import { BaseInitCheckoutDto } from '../dto/base-payment.dto';
 
 @Injectable()
@@ -31,16 +26,14 @@ export class PaymentsService {
     private stripePayment: StripePaymentStrategy,
     private iyzicoPayment: IyzicoPaymentStrategy,
     private drizzleService: DrizzleService,
-    private customerService: CustomerService,
-    private orderService: OrdersService,
+
   ) {}
 
   getPaymentProvider(provider: PaymentProvider): IProvider {
     switch (provider) {
       case PaymentProvider.STRIPE:
         return this.stripePayment;
-      case PaymentProvider.IYZICO:
-        return this.iyzicoPayment;
+
       default:
         throw new BadRequestException('Invalid payment provider');
     }

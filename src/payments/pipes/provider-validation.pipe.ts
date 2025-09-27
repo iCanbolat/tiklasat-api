@@ -7,8 +7,7 @@ import {
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
-import { StripeInitCheckoutDto } from '../dto/stripe/stripe-init-checkout.dto';
-import { IyzicoInitCheckoutDto } from '../dto/iyzico/iyzico-init-checkout.dto';
+ 
 import { PaymentProvider } from '../payments.enum';
 import { StripeCheckoutDTO } from '../dto/stripe/stripe.dto';
 
@@ -21,9 +20,9 @@ export class ProviderValidationPipe implements PipeTransform {
 
     let dtoClass;
     switch (value.provider) {
-      case PaymentProvider.IYZICO:
-        dtoClass = IyzicoInitCheckoutDto;
-        break;
+      // case PaymentProvider.IYZICO:
+      //   dtoClass = IyzicoInitCheckoutDto;
+      //   break;
       case PaymentProvider.STRIPE:
         dtoClass = StripeCheckoutDTO;
         break;

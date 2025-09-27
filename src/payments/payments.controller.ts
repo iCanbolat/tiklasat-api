@@ -10,22 +10,18 @@ import {
   Headers,
   Req,
   RawBodyRequest,
-  BadRequestException,
 } from '@nestjs/common';
 import { PaymentsService } from './providers/payments.service';
-// import { UpdatePaymentDto } from './dto/update-payment.dto';
-// import { CheckoutInitDto } from './dto/init-checkout-form.dto';
+
 import { Public } from 'src/auth/decorators/public.decorator';
 import { ProviderValidationPipe } from './pipes/provider-validation.pipe';
 import { PaymentProvider } from './payments.enum';
 import { ThreeDSValidationPipe } from './pipes/threeds-validation.pipe';
-import { StripeRefundDto } from './dto/stripe/stripe-refund.dto';
+
 import { Request } from 'express';
 import { CookieUser } from 'src/auth/decorators/cookie-user.decorator';
 import { CheckoutFormRetrieveRequest } from './dto/checkout-retrieve-req.dto';
-import { BaseInitCheckoutDto } from './dto/base-payment.dto';
-import { StripeInitCheckoutDto } from './dto/stripe/stripe-init-checkout.dto';
-import { IyzicoInitCheckoutDto } from './dto/iyzico/iyzico-init-checkout.dto';
+
 import { StripeCheckoutDTO } from './dto/stripe/stripe.dto';
 
 @Controller('payments')
@@ -51,7 +47,7 @@ export class PaymentsController {
   @Post('init-checkout-form')
   async initCheckoutForm(
     @Body(new ProviderValidationPipe())
-    checkoutInitDto: StripeCheckoutDTO & IyzicoInitCheckoutDto,
+    checkoutInitDto: StripeCheckoutDTO ,
     @CookieUser() user?: { sub: string },
   ): Promise<{ token?: string; paymentUrl: string }> {
     if (user) checkoutInitDto.userId = user.sub;
