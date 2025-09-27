@@ -6,52 +6,87 @@ import { PaymentResult } from './iyzico.type';
 import { CustomerType } from 'src/auth/interfaces/customer.types';
 
 export interface IProvider {
-  createThreeDsPaymentSession(createThreeDsPaymentDto: any): Promise<any>;
+  createThreeDsPaymentSession(
+    createThreeDsPaymentDto: unknown,
+  ): Promise<unknown>;
 
-  createRefund(refundDto: any): Promise<any>;
+  createRefund(refundDto: unknown): Promise<unknown>;
 
   createCheckoutFormSession(
-    checkoutInitDto: any,
-    orderId?: string,
+    checkoutInitDto: unknown,
+    orderNumber: string,
   ): Promise<{ paymentUrl: string; token?: string }>;
-
-  // getOrderData(token: string): Promise<any>;
 
   getCheckoutFormPaymentResult(token: string): Promise<CheckoutFormResult>;
 
-  getThreeDSPaymentResult(token: string): Promise<any>;
+  getThreeDSPaymentResult(token: string): Promise<unknown>;
 
-  handleWebhook(data: any, headers: Headers): Promise<any>;
+  handleWebhook(
+    data: unknown,
+    headers: Headers,
+  ): Promise<{ status: string; message?: string }>;
 
-  populateOrderData(orderId: string, checkoutInitDto: any): Promise<any>;
+  populateOrderData(
+    orderId: string,
+    userId?: string,
+    pointsToRedeem?: number,
+  ): Promise<PopulateOrderDataResult | null>;
 }
 
-export type CheckoutFormResult = {
-  total: number | string;
+export interface PopulateOrderDataResult {
+  lineItems: unknown[];
+  calculatedTotal: number;
+  orderItems: OrderItem[];
+  loyaltyDiscount?: {
+    pointsToRedeem: number;
+    discountAmount: number;
+    finalTotal: number;
+  };
+}
+
+export interface CheckoutFormResult {
+  total: number;
   buyer: Buyer & { id: string; type: CustomerType };
   cardType: PaymentCardType;
   cardFamily: string;
   installments: number;
   lastFourDigits: string;
-  paymentId?: string;
+  paymentId: string;
   addresses: Address[];
   items: OrderItem[];
-  // items: BasketItem[];
   orderNumber: string;
   billingAddress: string;
   shippingAddress: string;
-};
+  customerType: CustomerType;
+  loyalty?: LoyaltyInfo;
+  guest?: GuestInfo;
+}
 
-export type CheckoutFormResponse = {
+export interface LoyaltyInfo {
+  pointsRedeemed?: number;
+  discountAmount?: number;
+  pointsEarned: number;
+}
+
+export interface GuestInfo {
+  message: string;
+  potentialPointsIfRegistered: number;
+  registrationBenefit: string;
+  totalSpent: number;
+}
+
+export interface CheckoutFormResponse {
   items: OrderItem[];
-  // items: BasketItem[];
-  total: number | string;
+  total: number;
   billingAddress: string;
   shippingAddress: string;
   orderNumber: string;
   paymentCreatedAt: Date;
   email?: string;
   name: string;
-};
+  customerType?: CustomerType;
+  loyalty?: LoyaltyInfo;
+  guest?: GuestInfo;
+}
 
 export type BasketItem = { productId: string; quantity: number };

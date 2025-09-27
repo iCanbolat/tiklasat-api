@@ -7,6 +7,12 @@ import {
 } from './categories.schema';
 import { customerRelations, CustomerTable } from './customer-details.schema';
 import { guestRelations, GuestTable } from './guests.schema';
+import {
+  loyaltyTransactionRelations,
+  LoyaltyTransactionTable,
+  discountRelations,
+  DiscountTable,
+} from './loyalty.schema';
 import { NotificationTable } from './notifications.schema';
 import { orderItemRelations, OrderItemTable } from './order-items.schema';
 import { orderRelations, OrderTable } from './orders.schema';
@@ -50,6 +56,8 @@ export const databaseSchema = {
   wishLists: WishlistTable,
   guestsTable: GuestTable,
   customerDetails: CustomerTable,
+  loyaltyTransactions: LoyaltyTransactionTable,
+  discounts: DiscountTable,
   relatedProducts: RelatedProductTable,
   notifications: NotificationTable,
   ProductSagaLogTable: ProductSagaLogTable,
@@ -68,4 +76,6 @@ export const databaseSchema = {
   productVariantRelations: productVariantRelations,
   productRelations: productRelations,
   reviewRelations: reviewRelations,
+  loyaltyTransactionRelations: loyaltyTransactionRelations,
+  discountRelations: discountRelations,
 };

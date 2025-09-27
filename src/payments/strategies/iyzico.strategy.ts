@@ -335,7 +335,7 @@ export class IyzicoPaymentStrategy implements IProvider {
       buyer: this.orderInstanceDto.buyer,
       billingAddress: this.orderInstanceDto.billingAddressString,
       shippingAddress: this.orderInstanceDto.shippingAddressString,
-      total: result.paidPrice,
+      total: Number(result.paidPrice),
       cardFamily: result.cardFamily,
       cardType: result.cardType as PaymentCardType,
       installments: result.installment,
@@ -344,6 +344,7 @@ export class IyzicoPaymentStrategy implements IProvider {
       addresses: this.orderInstanceDto.address,
       items: this.orderInstanceDto.items,
       orderNumber: this.orderInstanceDto.conversationId,
+      customerType: this.orderInstanceDto.buyer.type,
     };
   }
 

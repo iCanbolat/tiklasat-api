@@ -11,7 +11,9 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenStrategy } from './strategies/refresh-token-strategy';
 import { CustomerService } from './providers/customer.service';
+import { LoyaltyService } from './providers/loyalty.service';
 import { CustomerController } from './controllers/customer.controller';
+import { LoyaltyController } from './controllers/loyalty.controller';
 import { AddressCleanupService } from './tasks/cleanup.task';
 
 @Module({
@@ -39,9 +41,10 @@ import { AddressCleanupService } from './tasks/cleanup.task';
     JwtStrategy,
     RefreshTokenStrategy,
     CustomerService,
+    LoyaltyService,
     AddressCleanupService,
   ],
-  controllers: [AuthController, CustomerController],
-  exports: [CustomerService],
+  controllers: [AuthController, CustomerController, LoyaltyController],
+  exports: [CustomerService, LoyaltyService],
 })
 export class AuthModule {}

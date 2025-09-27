@@ -38,7 +38,9 @@ export const ProductTable = pgTable('products', {
   price: decimal('price', { precision: 10, scale: 2 })
     .notNull()
     .$type<number>(),
-  cost: decimal('cost', { precision: 10, scale: 2 }).default("0").$type<number>(),
+  cost: decimal('cost', { precision: 10, scale: 2 })
+    .default('0')
+    .$type<number>(),
   slug: varchar('slug', { length: 255 }).notNull(),
   sku: varchar('sku', { length: 255 }),
   currency: CurrencyEnumCol('currency').default('USD'),
@@ -48,6 +50,10 @@ export const ProductTable = pgTable('products', {
   allowBackorders: boolean('allow_backorders').default(false),
   status: ProductStatusCol('status').default('ACTIVE').notNull(),
   isFeatured: boolean('is_featured').default(false).notNull(),
+  loyaltyPointsMultiplier: decimal('loyalty_points_multiplier', {
+    precision: 3,
+    scale: 2,
+  }).default('1.00'),
   metaTitle: varchar('meta_title', { length: 255 }),
   metaDescription: varchar('meta_description', { length: 255 }),
   metaKeywords: varchar('meta_keywords', { length: 255 }),

@@ -47,18 +47,23 @@ export class PaymentsService {
   }
   async createThreeDsPaymentSession(
     provider: PaymentProvider,
-    paymentData: any,
-  ): Promise<any> {
-    const strategy = this.getPaymentProvider(provider as PaymentProvider);
+    paymentData: unknown,
+  ): Promise<unknown> {
+    const strategy = this.getPaymentProvider(provider);
     return strategy.createThreeDsPaymentSession(paymentData);
   }
 
-  async createRefund(provider: PaymentProvider, refundData: any): Promise<any> {
+  async createRefund(
+    provider: PaymentProvider,
+    refundData: unknown,
+  ): Promise<unknown> {
     const strategy = this.getPaymentProvider(provider);
     return strategy.createRefund(refundData);
   }
 
-  async findOne(paymentId: string): Promise<any> {
+  async findOne(
+    paymentId: string,
+  ): Promise<(typeof PaymentTable.$inferSelect)[]> {
     return await this.drizzleService.db
       .select()
       .from(PaymentTable)
@@ -69,7 +74,7 @@ export class PaymentsService {
   async update(
     { paymentId, orderId }: { paymentId?: string; orderId?: string },
     status: PaymentStatusType,
-  ) {
+  ): Promise<{ total: string }> {
     console.log('order update service', paymentId, orderId, status);
 
     const whereCondition = paymentId
@@ -168,10 +173,31 @@ export class PaymentsService {
       .returning({ paymentCreatedAt: PaymentTable.createdAt });
 
     if (provider === PaymentProvider.STRIPE && 'clearOrderCache' in strategy) {
-      await (strategy as any).clearOrderCache(orderId);
+      const cacheKey = `order-data:${orderId}`;
+      const cachedData = await (strategy as any).cacheManager.get(cacheKey);
+
+      if (cachedData && (cachedData as any)?._processed) {
+        console.log(
+          '🎯 Success page: Webhook already processed, clearing cache:',
+          orderId,
+        );
+        await (strategy as any).clearOrderCache(orderId);
+      } else {
+        console.log(
+          '🎯 Success page: Reached before webhook, scheduling cleanup:',
+          orderId,
+        );
+        setTimeout(() => {
+          (strategy as any).clearOrderCache(orderId);
+          console.log(
+            '🧹 Success page delayed cache cleanup completed for:',
+            orderId,
+          );
+        }, 45000);
+      }
     }
 
-    return {
+    const baseResponse = {
       orderNumber: result.orderNumber,
       email: result.buyer.email,
       name: result.buyer.name,
@@ -181,21 +207,28 @@ export class PaymentsService {
       shippingAddress: result.shippingAddress,
       items: result.items,
     };
+
+    return {
+      ...baseResponse,
+      customerType: result.customerType,
+      ...(result.loyalty && { loyalty: result.loyalty }),
+      ...(result.guest && { guest: result.guest }),
+    };
   }
 
   async getThreeDSPaymentResult(
     provider: PaymentProvider,
     paymentId: string,
-  ): Promise<any> {
+  ): Promise<unknown> {
     const strategy = this.getPaymentProvider(provider);
     return strategy.getThreeDSPaymentResult(paymentId);
   }
 
   async handleWebhook(
     provider: PaymentProvider,
-    data: any,
+    data: unknown,
     headers: Headers,
-  ): Promise<any> {
+  ): Promise<{ status: string; message?: string }> {
     const strategy = this.getPaymentProvider(provider);
     return strategy.handleWebhook(data, headers);
   }

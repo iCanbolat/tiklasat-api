@@ -13,6 +13,8 @@ import {
   Customer,
   CustomerIdentifier,
   CustomerType,
+  CustomerWithOptions,
+  CustomerOrder,
 } from '../interfaces/customer.types';
 import { UserTable } from 'src/database/schemas';
 
@@ -22,6 +24,8 @@ export class CustomerService {
 
   async findOrCreate(identifier: CustomerIdentifier): Promise<Customer> {
     if (identifier.userId) {
+      console.log('findorcreate userId:', identifier.userId);
+
       const details = await this.findOrCreateUserDetails(identifier);
       return this.buildCustomerResponse(details, 'user', identifier);
     } else {
@@ -44,13 +48,21 @@ export class CustomerService {
     console.log('CustomerServiceCustomer:', customer);
 
     if (!address.id) {
+      const addressData: any = { ...address };
+
+      // Set correct customer ID field based on customer type
+      addressData[`${customer.type}Id`] = customer.id;
+
       [{ id }] = await this.drizzleService.db
         .insert(AddressTable)
-        .values({
-          ...address,
-          [`${customer.type}Id`]: customer.id,
-        })
+        .values(addressData)
         .returning({ id: AddressTable.id });
+
+      console.log('🏠 Created address for customer:', {
+        addressId: id,
+        customerType: customer.type,
+        customerId: customer.id,
+      });
     } else {
       id = address.id;
     }
@@ -107,7 +119,7 @@ export class CustomerService {
       includeOrders?: boolean;
       includeOrderDetails?: boolean;
     } = {},
-  ) {
+  ): Promise<CustomerWithOptions | null> {
     const withMap: any = {};
 
     if (type === 'user' && opts.includeUser) {
@@ -172,12 +184,13 @@ export class CustomerService {
       includeOrders?: boolean;
       includeOrderDetails?: boolean;
     },
-  ): any {
-    const base: any = {
+  ): CustomerWithOptions {
+    const base: CustomerWithOptions = {
       id: type === 'user' ? row.userId : row.id,
       type,
       name: type === 'user' ? row.user?.name : row.name,
       email: type === 'user' ? row.user?.email : row.email,
+      phone: type === 'user' ? row.user?.phone : row.phone,
     };
 
     if (opts.includeAddresses) {
@@ -189,8 +202,8 @@ export class CustomerService {
       base.totalSpent = row.totalSpent;
     }
     if (opts.includeOrders) {
-      base.orders = row.orders.map((o: any) => {
-        const orderDTO: any = {
+      base.orders = row.orders.map((o: any): CustomerOrder => {
+        const orderDTO: CustomerOrder = {
           id: o.id,
           status: o.status as OrderStatusType,
           createdAt: o.createdAt,
@@ -205,7 +218,7 @@ export class CustomerService {
       });
     }
 
-    return base as any;
+    return base;
   }
 
   // private transformToCustomer(data: any, type: CustomerType): Customer {
@@ -254,21 +267,212 @@ export class CustomerService {
     };
   }
 
+  /**
+   * Find existing address by criteria to avoid duplicates
+   */
+  async findExistingAddress(
+    customer: Customer,
+    addressData: Omit<Address, 'id'>,
+  ): Promise<string | null> {
+    const existingAddress = await this.drizzleService.db
+      .select({ id: AddressTable.id })
+      .from(AddressTable)
+      .where(
+        sql`${AddressTable[`${customer.type}Id`]} = ${customer.id} 
+            AND ${AddressTable.type} = ${addressData.type}
+            AND ${AddressTable.street} = ${addressData.street}
+            AND ${AddressTable.city} = ${addressData.city}
+            AND ${AddressTable.state} = ${addressData.state || ''}
+            AND ${AddressTable.zipCode} = ${addressData.zipCode || ''}
+            AND ${AddressTable.country} = ${addressData.country}`,
+      )
+      .limit(1);
+
+    return existingAddress[0]?.id || null;
+  }
+
+  /**
+   * Get customer addresses by user ID
+   */
+  async getCustomerAddresses(userId: string): Promise<any[]> {
+    return await this.drizzleService.db
+      .select()
+      .from(AddressTable)
+      .where(eq(AddressTable.userId, userId))
+      .orderBy(AddressTable.createdAt);
+  }
+
+  /**
+   * Get address by ID with customer validation
+   */
+  async getAddressById(
+    addressId: string,
+    customer: Customer,
+  ): Promise<any | null> {
+    const address = await this.drizzleService.db
+      .select()
+      .from(AddressTable)
+      .where(
+        sql`${AddressTable.id} = ${addressId} 
+            AND ${AddressTable[`${customer.type}Id`]} = ${customer.id}`,
+      )
+      .limit(1);
+
+    return address[0] || null;
+  }
+
+  /**
+   * Create or find address with deduplication
+   */
+  async createOrFindAddress(
+    addressData: Address & { orderId: string },
+    customer: Customer,
+  ): Promise<string> {
+    // If address ID is provided, validate it belongs to the customer
+    if (addressData.id) {
+      const existingAddress = await this.getAddressById(
+        addressData.id,
+        customer,
+      );
+      if (existingAddress) {
+        // Update order with existing address
+        await this.drizzleService.db
+          .update(OrderTable)
+          .set({
+            [`${addressData.type}AddressId`]: addressData.id,
+            [`${customer.type}Id`]: customer.id,
+          })
+          .where(eq(OrderTable.id, addressData.orderId));
+
+        return addressData.id;
+      }
+    }
+
+    // Check for existing similar address to avoid duplicates
+    const existingAddressId = await this.findExistingAddress(
+      customer,
+      addressData,
+    );
+    if (existingAddressId) {
+      // Update order with existing address
+      await this.drizzleService.db
+        .update(OrderTable)
+        .set({
+          [`${addressData.type}AddressId`]: existingAddressId,
+          [`${customer.type}Id`]: customer.id,
+        })
+        .where(eq(OrderTable.id, addressData.orderId));
+
+      return existingAddressId;
+    }
+
+    // Create new address
+    const newAddressData: any = { ...addressData };
+
+    // Set correct customer ID field based on customer type
+    newAddressData[`${customer.type}Id`] = customer.id;
+
+    const [{ id }] = await this.drizzleService.db
+      .insert(AddressTable)
+      .values(newAddressData)
+      .returning({ id: AddressTable.id });
+
+    // Update customer's default addresses if user
+    if (customer.type === 'user') {
+      await this.drizzleService.db
+        .update(CustomerTable)
+        .set({
+          [`${addressData.type}AddressId`]: id,
+        })
+        .where(eq(CustomerTable.userId, customer.id));
+    }
+
+    // Update order with new address
+    await this.drizzleService.db
+      .update(OrderTable)
+      .set({
+        [`${addressData.type}AddressId`]: id,
+        [`${customer.type}Id`]: customer.id,
+      })
+      .where(eq(OrderTable.id, addressData.orderId));
+
+    return id;
+  }
+
+  /**
+   * Enhanced address preparation with deduplication
+   */
+  async prepareAddressDataWithDeduplication(
+    addresses: Address[],
+    customer: Customer,
+    orderId: string,
+    existingAddressIds?: {
+      billingAddressId?: string;
+      shippingAddressId?: string;
+    },
+  ) {
+    const addressIds: string[] = [];
+    const addressStrings: string[] = [];
+
+    for (const address of addresses) {
+      let addressId: string;
+
+      // Use existing address ID if provided
+      if (address.type === 'billing' && existingAddressIds?.billingAddressId) {
+        addressId = existingAddressIds.billingAddressId;
+        // Validate address belongs to customer
+        const validAddress = await this.getAddressById(addressId, customer);
+        if (!validAddress) {
+          throw new Error('Invalid billing address ID');
+        }
+      } else if (
+        address.type === 'shipping' &&
+        existingAddressIds?.shippingAddressId
+      ) {
+        addressId = existingAddressIds.shippingAddressId;
+        // Validate address belongs to customer
+        const validAddress = await this.getAddressById(addressId, customer);
+        if (!validAddress) {
+          throw new Error('Invalid shipping address ID');
+        }
+      } else {
+        // Create or find address
+        addressId = await this.createOrFindAddress(
+          { ...address, orderId },
+          customer,
+        );
+      }
+
+      addressIds.push(addressId);
+      addressStrings.push(
+        `${address.street}, ${address.state}/${address.city}, ${address.country}, ${address?.zipCode ?? ''}`,
+      );
+    }
+
+    return {
+      addressIds,
+      addressStrings,
+    };
+  }
+
   private async findOrCreateUserDetails(identifier: CustomerIdentifier) {
     const { userId, guestId, ...rest } = identifier;
 
-    // let customer = await this.drizzleService.db
-    //   .select()
-    //   .from(CustomerTable)
-    //   .where(eq(CustomerTable.userId, userId))
-    //   .execute();
-    const customer = await this.findOne(userId, 'user', { includeUser: true });
+    let customer = await this.findOne(userId, 'user', { includeUser: true });
 
     if (!customer) {
-      await this.drizzleService.db
+      const [createdCustomer] = await this.drizzleService.db
         .insert(CustomerTable)
         .values({ userId })
         .returning();
+
+      console.log('✅ Created new customer details for user:', {
+        userId,
+        customerId: createdCustomer.userId,
+      });
+
+      // Fetch the newly created customer with all related data
+      customer = await this.findOne(userId, 'user', { includeUser: true });
     }
 
     await this.drizzleService.db
@@ -278,7 +482,10 @@ export class CustomerService {
       })
       .where(eq(UserTable.id, userId));
 
-    return this.findOne(userId, 'user', { includeUser: true });
+    console.log('findorcreauserdetail:', customer);
+
+    // return this.findOne(userId, 'user', { includeUser: true });
+    return customer;
   }
 
   private async findOrCreateGuestDetails(
@@ -286,20 +493,28 @@ export class CustomerService {
     phone: string,
     name: string,
   ) {
-    // let guest = await this.drizzleService.db
-    //   .select()
-    //   .from(GuestTable)
-    //   .where(eq(GuestTable.email, email))
-    //   .execute();
-
     let guest = await this.findOne(email, 'guest');
 
     if (!guest) {
-      guest = await this.drizzleService.db
+      const [createdGuest] = await this.drizzleService.db
         .insert(GuestTable)
         .values({ email, phone, name })
         .returning();
+
+      console.log('✅ Created new guest:', {
+        id: createdGuest.id,
+        email: createdGuest.email,
+        phone: createdGuest.phone,
+      });
+
+      return createdGuest;
     }
+
+    console.log('📋 Found existing guest:', {
+      id: guest.id,
+      email: guest.email,
+      phone: guest.phone,
+    });
 
     return guest;
   }
@@ -309,10 +524,17 @@ export class CustomerService {
     type: Customer['type'],
     identifier: CustomerIdentifier,
   ): Customer {
-    return {
-      id: type === 'user' ? details.userId : details.id,
+    console.log('🏗️ Building customer response:', {
+      id: details.id,
       type,
-      name: details.name,
+      email: identifier.email,
+      phone: identifier.phone,
+    });
+
+    return {
+      id: details.id,
+      type,
+      name: details.name || identifier.name,
       email: identifier.email,
       phone: identifier.phone,
       identityNo: details?.identityNo ?? '11111111111',
@@ -401,5 +623,16 @@ export class CustomerService {
       `🗑️ Cleaned up ${deletedAddresses.length} guest addresses older than ${daysOld} days`,
     );
     return deletedAddresses.length;
+  }
+
+  /**
+   * Delete customer address
+   */
+  async deleteAddress(addressId: string, userId: string): Promise<void> {
+    await this.drizzleService.db
+      .delete(AddressTable)
+      .where(
+        sql`${AddressTable.id} = ${addressId} AND ${AddressTable.userId} = ${userId}`,
+      );
   }
 }

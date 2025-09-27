@@ -1,4 +1,12 @@
-import { IsEnum, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsUUID,
+  IsNumber,
+  Min,
+  IsString,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { PaymentProvider } from '../payments.enum';
 
 export class BaseInitCheckoutDto {
@@ -11,4 +19,10 @@ export class BaseInitCheckoutDto {
   @IsOptional()
   @IsUUID()
   userId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(100)
+  @Type(() => Number)
+  pointsToRedeem?: number;
 }
