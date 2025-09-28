@@ -37,6 +37,21 @@ async function bootstrap() {
   // Render uses dynamic port assignment
   const port = parseInt(process.env.PORT) || 8080;
 
+  // Root endpoint - API information
+  app.getHttpAdapter().get('/', (req, res) => {
+    res.json({
+      name: 'TiklaSat API',
+      version: '1.0.0',
+      status: 'running',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        docs: '/api/docs',
+        health: '/health',
+        api: '/api'
+      }
+    });
+  });
+
   // Health check endpoint for Render
   app.getHttpAdapter().get('/health', (req, res) => {
     res.json({
