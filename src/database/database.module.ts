@@ -23,6 +23,13 @@ import { DrizzleService } from './drizzle.service';
           user: databaseOptions.user,
           password: databaseOptions.password,
           database: databaseOptions.database,
+          ssl:
+            process.env.NODE_ENV === 'production'
+              ? { rejectUnauthorized: false }
+              : false,
+          connectionTimeoutMillis: 10000,
+          idleTimeoutMillis: 30000,
+          max: 20,
         });
       },
     },
