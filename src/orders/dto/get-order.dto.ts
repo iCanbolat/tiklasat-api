@@ -49,4 +49,12 @@ export class GetOrderDto {
   @Transform(({ value }) => (value ? new Date(value) : undefined))
   @IsDate()
   endDate?: Date;
+
+  @IsOptional()
+  @IsString()
+  sortBy?: 'createdAt' | 'totalPrice' | 'status' | 'customerName' = 'createdAt';
+
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'asc' | 'desc' = 'desc';
 }

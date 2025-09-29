@@ -1,19 +1,27 @@
 import { defineConfig } from 'drizzle-kit';
-import { ConfigService } from '@nestjs/config';
 import 'dotenv/config';
-
-const configService = new ConfigService();
 
 export default defineConfig({
   schema: './src/database/schemas',
   out: './src/database/migrations',
   dialect: 'postgresql',
-  dbCredentials: {
-    host: configService.get('POSTGRES_HOST'),
-    port: configService.get('POSTGRES_PORT'),
-    user: configService.get('POSTGRES_USER'),
-    password: configService.get('POSTGRES_PASSWORD'),
-    database: configService.get('POSTGRES_DB'),
-    ssl: false,
-  },
+  dbCredentials: process.env.DATABASE_URL
+    ? {
+        url: process.env.DATABASE_URL,
+        ssl:
+          process.env.NODE_ENV === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
+      }
+    : {
+        host: process.env.POSTGRES_HOST,
+        port: parseInt(process.env.POSTGRES_PORT || '5432'),
+        user: process.env.POSTGRES_USER,
+        password: process.env.POSTGRES_PASSWORD,
+        database: process.env.POSTGRES_DB,
+        ssl:
+          process.env.NODE_ENV === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
+      },
 });

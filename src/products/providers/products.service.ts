@@ -283,9 +283,29 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       .groupBy(ProductTable.id)
       .$dynamic();
 
+    // Custom count query for products - count distinct products only
+    const countQuery = this.drizzleService.db
+      .select({
+        count: sql`COUNT(DISTINCT ${ProductTable.id})`.as('count'),
+      })
+      .from(ProductTable)
+      .leftJoin(
+        ProductCategoryTable,
+        eq(ProductCategoryTable.productId, ProductTable.id),
+      )
+      .leftJoin(
+        CategoryTable,
+        eq(ProductCategoryTable.categoryId, CategoryTable.id),
+      )
+      .leftJoin(
+        ProductVariantTable,
+        eq(ProductVariantTable.productId, ProductTable.id),
+      );
+
     const paginatedResults = await this.getPaginatedResult(
       getProductsDto,
       query,
+      countQuery,
     );
 
     return {
@@ -294,7 +314,7 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
     };
   }
 
-  protected applyPaginateJoins?(query: PgSelectBase<any, any, any>) {
+  protected applyPaginationJoins?(query: any) {
     return query
       .leftJoin(
         ProductCategoryTable,
@@ -310,8 +330,20 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
       );
   }
 
-  protected async applyFilters(query: any, filters: GetProductsDto) {
-    const { categorySlug, minPrice, maxPrice, attributes, status } = filters;
+  protected applyFilters(
+    query: any,
+    filters: GetProductsDto,
+    skipOrderBy?: boolean,
+  ) {
+    const {
+      categorySlug,
+      minPrice,
+      maxPrice,
+      attributes,
+      status,
+      sortBy,
+      sortOrder,
+    } = filters;
 
     const conditions = [];
 
@@ -354,6 +386,36 @@ export class ProductsService extends AbstractCrudService<typeof ProductTable> {
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions));
+    }
+
+    // Apply sorting if not skipped (for count queries)
+    if (!skipOrderBy) {
+      const isDesc = sortOrder === 'desc';
+
+      switch (sortBy) {
+        case 'name':
+          query = query.orderBy(
+            isDesc
+              ? sql`${ProductTable.name} DESC`
+              : sql`${ProductTable.name} ASC`,
+          );
+          break;
+        case 'price':
+          query = query.orderBy(
+            isDesc
+              ? sql`${ProductTable.price} DESC`
+              : sql`${ProductTable.price} ASC`,
+          );
+          break;
+        case 'createdAt':
+        default:
+          query = query.orderBy(
+            isDesc
+              ? sql`${ProductTable.createdAt} DESC`
+              : sql`${ProductTable.createdAt} ASC`,
+          );
+          break;
+      }
     }
 
     return query;

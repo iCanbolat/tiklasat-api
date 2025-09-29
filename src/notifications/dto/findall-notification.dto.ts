@@ -42,4 +42,12 @@ export class GetNotificationsDto {
   @IsEnum(NotificationEnum.enum, { each: true })
   @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
   types?: NotificationEnumType[];
+
+  @IsOptional()
+  @IsString()
+  sortBy?: 'createdAt' | 'title' | 'type' | 'isRead' = 'createdAt';
+
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'asc' | 'desc' = 'desc';
 }

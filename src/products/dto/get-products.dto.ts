@@ -60,4 +60,12 @@ export class GetProductsDto {
   @IsEnum(ProductStatusEnum.enum, { each: true })
   @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
   status?: ProductStatusType[];
+
+  @IsOptional()
+  @IsString()
+  sortBy?: 'name' | 'price' | 'createdAt' = 'createdAt';
+
+  @IsOptional()
+  @IsString()
+  sortOrder?: 'asc' | 'desc' = 'desc';
 }

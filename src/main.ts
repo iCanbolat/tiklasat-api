@@ -47,8 +47,8 @@ async function bootstrap() {
       endpoints: {
         docs: '/api/docs',
         health: '/health',
-        api: '/api'
-      }
+        api: '/api',
+      },
     });
   });
 

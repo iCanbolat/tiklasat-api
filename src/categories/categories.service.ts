@@ -6,7 +6,7 @@ import {
   CategoryTable,
   ProductCategoryTable,
 } from 'src/database/schemas/categories.schema';
-import { and, eq, inArray, SQL, sql } from 'drizzle-orm';
+import { and, eq, inArray, SQL, sql, ilike, asc, desc } from 'drizzle-orm';
 import { UpdateCategoryProductsDto } from './dto/update-category-products.dto';
 import slugify from 'slugify';
 import {
@@ -19,10 +19,16 @@ import {
   ICategoryTree,
   // IProduct,
 } from './interfaces';
+import { AbstractCrudService } from 'src/common/services/base-service';
+import { GetCategoriesDto } from './dto/get-categories.dto';
 
 @Injectable()
-export class CategoriesService {
-  constructor(private readonly drizzleService: DrizzleService) {}
+export class CategoriesService extends AbstractCrudService<
+  typeof CategoryTable
+> {
+  constructor(protected readonly drizzleService: DrizzleService) {
+    super(drizzleService, CategoryTable);
+  }
 
   async create(createCategoryDto: CreateCategoryDto): Promise<ICategory> {
     const params: typeof CategoryTable.$inferInsert = createCategoryDto;
@@ -97,6 +103,32 @@ export class CategoriesService {
     };
   }
 
+  async findAll(filters: GetCategoriesDto) {
+    const baseQuery = this.drizzleService.db
+      .select({
+        id: CategoryTable.id,
+        name: CategoryTable.name,
+        slug: CategoryTable.slug,
+        imageUrl: CategoryTable.imageUrl,
+        parentId: CategoryTable.parentId,
+        isActive: CategoryTable.isActive,
+        isFeatured: CategoryTable.isFeatured,
+        displayOrder: CategoryTable.displayOrder,
+        createdAt: CategoryTable.createdAt,
+        productsCount: sql<number>`COUNT(${ProductCategoryTable.productId})`.as(
+          'productsCount',
+        ),
+      })
+      .from(CategoryTable)
+      .leftJoin(
+        ProductCategoryTable,
+        eq(ProductCategoryTable.categoryId, CategoryTable.id),
+      )
+      .groupBy(CategoryTable.id);
+
+    return await this.getPaginatedResult(filters, baseQuery);
+  }
+
   async getAllCategories(): Promise<ICategoryTree[]> {
     const categories = await this.drizzleService.db
       .select({
@@ -167,13 +199,80 @@ export class CategoriesService {
     };
   }
 
+  protected delete(categoryId: string) {
+    return this.drizzleService.db
+      .delete(CategoryTable)
+      .where(eq(CategoryTable.id, categoryId))
+      .returning({ id: CategoryTable.id });
+  }
+
+  protected applyFilters(
+    query: any,
+    filters: GetCategoriesDto,
+    skipOrderBy?: boolean,
+  ) {
+    const { search, isActive, isFeatured, sortBy, sortOrder } = filters;
+
+    const conditions = [];
+
+    if (search) {
+      conditions.push(ilike(CategoryTable.name, `%${search}%`));
+    }
+
+    if (isActive !== undefined) {
+      conditions.push(eq(CategoryTable.isActive, isActive));
+    }
+
+    if (isFeatured !== undefined) {
+      conditions.push(eq(CategoryTable.isFeatured, isFeatured));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    if (!skipOrderBy) {
+      const isAsc = sortOrder === 'asc';
+
+      switch (sortBy) {
+        case 'name':
+          query = query.orderBy(
+            isAsc ? asc(CategoryTable.name) : desc(CategoryTable.name),
+          );
+          break;
+        case 'displayOrder':
+          query = query.orderBy(
+            isAsc
+              ? asc(CategoryTable.displayOrder)
+              : desc(CategoryTable.displayOrder),
+          );
+          break;
+        case 'productsCount':
+          query = query.orderBy(
+            isAsc
+              ? sql`COUNT(${ProductCategoryTable.productId}) ASC`
+              : sql`COUNT(${ProductCategoryTable.productId}) DESC`,
+          );
+          break;
+        case 'createdAt':
+        default:
+          query = query.orderBy(
+            isAsc
+              ? asc(CategoryTable.createdAt)
+              : desc(CategoryTable.createdAt),
+          );
+          break;
+      }
+    }
+
+    return query;
+  }
+
   async removeCategory(categoryId: string, shouldDeleteProducts: boolean) {
     const categoryWithProducts = await this.getCategory(categoryId);
 
     if (!shouldDeleteProducts) {
-      await this.drizzleService.db
-        .delete(CategoryTable)
-        .where(sql`${CategoryTable.id} = ${categoryId}`);
+      await this.delete(categoryId);
 
       return {
         message:
@@ -189,9 +288,7 @@ export class CategoriesService {
         .where(inArray(ProductTable.id, productIds));
     }
 
-    await this.drizzleService.db
-      .delete(CategoryTable)
-      .where(sql`${CategoryTable.id} = ${categoryId}`);
+    await this.delete(categoryId);
 
     return {
       message: 'Category and all associated products deleted successfully',
@@ -257,7 +354,6 @@ export class CategoriesService {
     });
 
     console.log(category);
-    
 
     if (category) {
       return category;

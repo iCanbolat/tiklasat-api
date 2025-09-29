@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { countDistinct, eq, sql } from 'drizzle-orm';
+import { count, countDistinct, eq, sql } from 'drizzle-orm';
 import { DrizzleService } from 'src/database/drizzle.service';
-import {
-  PgSelect,
-  PgSelectBase,
-  PgTable,
-  TableConfig,
-} from 'drizzle-orm/pg-core';
+import { PgTable, TableConfig } from 'drizzle-orm/pg-core';
 import { PaginatedResults } from '../types';
+
+export interface BasePaginationFilters {
+  page?: number;
+  pageSize?: number;
+}
 
 @Injectable()
 export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
@@ -20,40 +20,40 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
     this.drizzleService = drizzleService;
   }
 
-  protected abstract findAll<F>(filters: F): any;
+  protected abstract findAll<F extends BasePaginationFilters>(filters: F): any;
 
   protected findOne(id: string): any {}
 
   protected abstract create(data: any, files?: any): any;
 
-  // protected abstract update(id: string, data: any): any;
-
   protected abstract delete(id: string): any;
 
-  protected abstract applyFilters?<F>(
+  protected abstract applyFilters<F>(
     query: any,
     filters: F,
     skipOrderBy?: boolean,
   ): any;
 
-  protected applyPaginateJoins?(query: PgSelectBase<any, any, any>): any;
+  // Optional method to apply joins for pagination queries
+  protected applyPaginationJoins?(query: any): any;
 
-  async getPaginatedResult(
-    filters: any,
-    baseQuery?: PgSelect,
+  async getPaginatedResult<F extends BasePaginationFilters>(
+    filters: F,
+    baseQuery?: any,
+    customCountQuery?: any,
   ): Promise<PaginatedResults<any>> {
-    const { page, pageSize } = filters || {};
+    const { page = 1, pageSize = 10 } = filters;
     const offset = (page - 1) * pageSize;
 
-    let query: PgSelect;
+    let dataQuery: any;
 
     if (baseQuery) {
-      query = this.applyFilters(
+      dataQuery = this.applyFilters(
         baseQuery.limit(pageSize).offset(offset),
         filters,
       );
     } else {
-      query = this.applyFilters(
+      dataQuery = this.applyFilters(
         this.drizzleService.db
           .select()
           .from(this.table)
@@ -63,8 +63,10 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
       );
     }
 
-    const data = await query;
-    const totalRecords = await this.getTotalRecords(filters);
+    const [data, totalRecords] = await Promise.all([
+      dataQuery,
+      this.getTotalRecords(filters, customCountQuery),
+    ]);
 
     return {
       data,
@@ -77,18 +79,29 @@ export abstract class AbstractCrudService<T extends PgTable<TableConfig>> {
     };
   }
 
-  private async getTotalRecords<F>(filters: F): Promise<number> {
-    let countQuery = this.drizzleService.db
-      .select({ count: countDistinct(this.table.id) })
-      .from(this.table);
+  private async getTotalRecords<F>(
+    filters: F,
+    customCountQuery?: any,
+  ): Promise<number> {
+    let countQuery: any;
 
-    if (this.applyPaginateJoins)
-      countQuery = this.applyPaginateJoins(countQuery);
+    if (customCountQuery) {
+      countQuery = this.applyFilters(customCountQuery, filters, true);
+    } else {
+      countQuery = this.drizzleService.db
+        .select({ count: count(this.table.id) })
+        .from(this.table);
 
-    const query = this.applyFilters(countQuery, filters, true);
+      if (this.applyPaginationJoins) {
+        countQuery = this.applyPaginationJoins(countQuery);
+      }
 
-    const [{ count } = { count: 0 }] = await query;
+      countQuery = this.applyFilters(countQuery, filters, true);
+    }
 
-    return Number(count);
+    const result = await countQuery;
+    const totalCount = result[0]?.count || 0;
+
+    return Number(totalCount);
   }
 }

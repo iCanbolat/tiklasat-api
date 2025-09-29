@@ -7,7 +7,20 @@ import { OrderItemTable } from 'src/database/schemas/order-items.schema';
 import { AddressTable } from 'src/database/schemas/addresses.schema';
 import { OrderStatus, OrderTable } from 'src/database/schemas/orders.schema';
 import { CustomerTable } from 'src/database/schemas/customer-details.schema';
-import { and, count, countDistinct, eq, gte, inArray, sql } from 'drizzle-orm';
+import {
+  and,
+  count,
+  countDistinct,
+  eq,
+  gte,
+  inArray,
+  sql,
+  like,
+  between,
+  desc,
+  lte,
+  asc,
+} from 'drizzle-orm';
 import { ProductsService } from 'src/products/providers/products.service';
 import { GetOrderDto } from './dto/get-order.dto';
 import { GuestTable } from 'src/database/schemas/guests.schema';
@@ -70,12 +83,11 @@ export class OrdersService extends AbstractCrudService<typeof OrderTable> {
   }
 
   async findAll(dto: GetOrderDto) {
-    const { status, search, minPrice, maxPrice } = dto;
-
-    // === 1️⃣ Orders query ===
-    const orders = await this.drizzleService.db
+    // Base query for orders with joins
+    const baseQuery = this.drizzleService.db
       .select({
         id: OrderTable.id,
+        orderNumber: OrderTable.orderNumber,
         createdAt: OrderTable.createdAt,
         status: OrderTable.status,
         customerName: sql`COALESCE(${GuestTable.name}, ${UserTable.name})`.as(
@@ -101,12 +113,30 @@ export class OrdersService extends AbstractCrudService<typeof OrderTable> {
       .leftJoin(GuestTable, eq(OrderTable.guestId, GuestTable.id))
       .groupBy(
         OrderTable.id,
+        OrderTable.orderNumber,
         PaymentTable.status,
         GuestTable.name,
         GuestTable.email,
         UserTable.name,
         UserTable.email,
       );
+
+    // Count query for pagination
+    const countQuery = this.drizzleService.db
+      .select({ count: countDistinct(OrderTable.id) })
+      .from(OrderTable)
+      .leftJoin(OrderItemTable, eq(OrderItemTable.orderId, OrderTable.id))
+      .leftJoin(PaymentTable, eq(PaymentTable.orderId, OrderTable.id))
+      .leftJoin(CustomerTable, eq(OrderTable.userId, CustomerTable.userId))
+      .leftJoin(UserTable, eq(CustomerTable.userId, UserTable.id))
+      .leftJoin(GuestTable, eq(OrderTable.guestId, GuestTable.id));
+
+    // Get paginated orders
+    const paginatedResult = await this.getPaginatedResult(
+      dto,
+      baseQuery,
+      countQuery,
+    );
 
     // === 2️⃣ Order counts by status ===
     const counts = await this.drizzleService.db
@@ -162,7 +192,7 @@ export class OrdersService extends AbstractCrudService<typeof OrderTable> {
     };
 
     return {
-      orders,
+      ...paginatedResult,
       orderCountsByStatus,
       analytics,
     };
@@ -290,11 +320,109 @@ export class OrdersService extends AbstractCrudService<typeof OrderTable> {
     });
   }
   protected delete(id: string) {
-    throw new Error('Method not implemented.');
+    return this.drizzleService.db
+      .delete(OrderTable)
+      .where(eq(OrderTable.id, id))
+      .returning({ id: OrderTable.id });
   }
-  protected applyFilters?<F>(query: any, filters: F, skipOrderBy?: boolean) {
-    throw new Error('Method not implemented.');
+
+  protected applyFilters<F extends GetOrderDto>(
+    query: any,
+    filters: F,
+    skipOrderBy?: boolean,
+  ) {
+    const {
+      status,
+      search,
+      minPrice,
+      maxPrice,
+      startDate,
+      endDate,
+      sortBy,
+      sortOrder,
+    } = filters;
+
+    // Apply status filter
+    if (status) {
+      query = query.where(eq(OrderTable.status, status));
+    }
+
+    // Apply search filter (search in customer names, emails, or order numbers)
+    if (search) {
+      query = query.where(
+        sql`(
+          LOWER(COALESCE(${GuestTable.name}, ${UserTable.name})) LIKE LOWER(${`%${search}%`}) OR
+          LOWER(COALESCE(${GuestTable.email}, ${UserTable.email})) LIKE LOWER(${`%${search}%`}) OR
+          LOWER(${OrderTable.orderNumber}) LIKE LOWER(${`%${search}%`})
+        )`,
+      );
+    }
+
+    // Apply price range filter
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      if (minPrice !== undefined && maxPrice !== undefined) {
+        query = query.having(
+          between(
+            sql`COALESCE(SUM(${PaymentTable.amount}), 0)`,
+            minPrice,
+            maxPrice,
+          ),
+        );
+      } else if (minPrice !== undefined) {
+        query = query.having(
+          gte(sql`COALESCE(SUM(${PaymentTable.amount}), 0)`, minPrice),
+        );
+      } else if (maxPrice !== undefined) {
+        query = query.having(
+          lte(sql`COALESCE(SUM(${PaymentTable.amount}), 0)`, maxPrice),
+        );
+      }
+    }
+
+    // Apply date range filter
+    if (startDate) {
+      query = query.where(gte(OrderTable.createdAt, startDate));
+    }
+    if (endDate) {
+      query = query.where(lte(OrderTable.createdAt, endDate));
+    }
+
+    // Apply ordering (skip for count queries)
+    if (!skipOrderBy) {
+      const isAsc = sortOrder === 'asc';
+
+      switch (sortBy) {
+        case 'totalPrice':
+          query = query.orderBy(
+            isAsc
+              ? sql`COALESCE(SUM(${PaymentTable.amount}), 0) ASC`
+              : sql`COALESCE(SUM(${PaymentTable.amount}), 0) DESC`,
+          );
+          break;
+        case 'status':
+          query = query.orderBy(
+            isAsc ? asc(OrderTable.status) : desc(OrderTable.status),
+          );
+          break;
+        case 'customerName':
+          query = query.orderBy(
+            isAsc
+              ? sql`COALESCE(${GuestTable.name}, ${UserTable.name}) ASC`
+              : sql`COALESCE(${GuestTable.name}, ${UserTable.name}) DESC`,
+          );
+          break;
+        case 'createdAt':
+        default:
+          query = query.orderBy(
+            isAsc ? asc(OrderTable.createdAt) : desc(OrderTable.createdAt),
+          );
+          break;
+      }
+    }
+
+    return query;
   }
+
   remove(id: number) {
     return `This action removes a #${id} order`;
   }

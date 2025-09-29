@@ -80,12 +80,12 @@ export class NotificationsService extends AbstractCrudService<
     return { message: 'All notifications deleted' };
   }
 
-  protected async applyFilters(
+  protected applyFilters(
     query: any,
     filters: GetNotificationsDto,
     skipOrderBy: boolean = false,
   ) {
-    const { isRead, types, search } = filters;
+    const { isRead, types, search, sortBy, sortOrder } = filters;
 
     const conditions = [];
 
@@ -110,11 +110,40 @@ export class NotificationsService extends AbstractCrudService<
       query = query.where(and(...conditions));
     }
 
-    if (!skipOrderBy)
-      query = query.orderBy(
-        asc(NotificationTable.isRead),
-        desc(NotificationTable.createdAt),
-      );
+    if (!skipOrderBy) {
+      const isAsc = sortOrder === 'asc';
+
+      switch (sortBy) {
+        case 'title':
+          query = query.orderBy(
+            isAsc
+              ? asc(NotificationTable.title)
+              : desc(NotificationTable.title),
+          );
+          break;
+        case 'type':
+          query = query.orderBy(
+            isAsc ? asc(NotificationTable.type) : desc(NotificationTable.type),
+          );
+          break;
+        case 'isRead':
+          query = query.orderBy(
+            isAsc
+              ? asc(NotificationTable.isRead)
+              : desc(NotificationTable.isRead),
+            desc(NotificationTable.createdAt), // Secondary sort by createdAt
+          );
+          break;
+        case 'createdAt':
+        default:
+          query = query.orderBy(
+            isAsc
+              ? asc(NotificationTable.createdAt)
+              : desc(NotificationTable.createdAt),
+          );
+          break;
+      }
+    }
 
     return query;
   }
