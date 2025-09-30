@@ -44,6 +44,7 @@ COPY --from=build --chown=nestjs:nodejs /app/package.json ./
 # Copy necessary configuration files
 COPY --chown=nestjs:nodejs drizzle.config.ts ./
 COPY --from=build --chown=nestjs:nodejs /app/src/database/schemas ./src/database/schemas
+COPY --chown=nestjs:nodejs scripts ./scripts
 COPY --from=build --chown=nestjs:nodejs /app/src/mail/templates ./src/mail/templates
 
 # Copy and set up start script
@@ -61,12 +62,12 @@ fi
 
 echo "✅ Database URL configured"
 
-# Push database schema directly
-echo "📊 Pushing database schema..."
-if npm run db:push; then
-    echo "✅ Database schema pushed successfully"
+# Initialize database with enums and schema
+echo "📊 Initializing database..."
+if npm run db:init; then
+    echo "✅ Database initialized successfully"
 else
-    echo "❌ Database schema push failed"
+    echo "❌ Database initialization failed"
     exit 1
 fi
 

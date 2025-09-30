@@ -4,6 +4,12 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { webcrypto } from 'crypto';
+
+// Polyfill for crypto in Node.js environments
+if (!globalThis.crypto) {
+  globalThis.crypto = webcrypto as Crypto;
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
