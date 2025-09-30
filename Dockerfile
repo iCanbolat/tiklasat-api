@@ -44,7 +44,6 @@ COPY --from=build --chown=nestjs:nodejs /app/package.json ./
 # Copy necessary configuration files
 COPY --chown=nestjs:nodejs drizzle.config.ts ./
 COPY --from=build --chown=nestjs:nodejs /app/src/database/schemas ./src/database/schemas
-COPY --from=build --chown=nestjs:nodejs /app/src/database/migrations ./src/database/migrations
 COPY --from=build --chown=nestjs:nodejs /app/src/mail/templates ./src/mail/templates
 
 # Copy and set up start script
@@ -62,12 +61,12 @@ fi
 
 echo "✅ Database URL configured"
 
-# Run database migrations
-echo "📊 Running database migrations..."
-if npm run db:migrate; then
-    echo "✅ Database migrations completed successfully"
+# Push database schema directly
+echo "📊 Pushing database schema..."
+if npm run db:push; then
+    echo "✅ Database schema pushed successfully"
 else
-    echo "❌ Database migrations failed"
+    echo "❌ Database schema push failed"
     exit 1
 fi
 
