@@ -1,0 +1,71 @@
+# Render configuration for tiklasat-api
+services:
+  - type: web
+    name: tiklasat-api
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      # Database will be connected manually from Render dashboard
+      # Add other environment variables in Render dashboard
+      - key: NODE_ENV
+        value: production
+
+      # Application Configuration
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+
+      # JWT Configuration
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_TOKEN_TTL
+        value: 3600000
+      - key: REFRESH_TOKEN_TTL
+        value: 604800000
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+
+      # Payment Providers (Set these in Render dashboard)
+      - key: IYZICO_API_KEY
+        sync: false
+      - key: IYZICO_SECRET_KEY
+        sync: false
+      - key: IYZICO_BASE_URL
+        value: https://api.iyzipay.com
+      - key: STRIPE_SECRET_KEY
+        sync: false
+
+      # Cloud Services
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # Email Service
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+      # Security Configuration
+      - key: STRICT_IP_VALIDATION
+        value: true
+
+      # Rate Limiting
+      - key: RATE_LIMIT_MAX_ATTEMPTS
+        value: 5
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_BLOCK_DURATION_MS
+        value: 3600000
+
+      # CORS Configuration
+      - key: CORS_ORIGIN
+        sync: false
+
+    healthCheckPath: /api/health

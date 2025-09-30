@@ -12,6 +12,7 @@ import { MailModule } from './mail/mail.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import paymentConfig from './payments/config/payment.config';
+import { HealthController } from './common/controllers/health.controller';
 
 @Module({
   imports: [
@@ -51,7 +52,7 @@ import paymentConfig from './payments/config/payment.config';
     CloudinaryModule,
     NotificationsModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {}
