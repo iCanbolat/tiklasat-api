@@ -44,6 +44,7 @@ COPY --from=build --chown=nestjs:nodejs /app/package.json ./
 # Copy necessary configuration files
 COPY --chown=nestjs:nodejs drizzle.config.ts ./
 COPY --from=build --chown=nestjs:nodejs /app/src/database/schemas ./src/database/schemas
+COPY --from=build --chown=nestjs:nodejs /app/src/database/migrations ./src/database/migrations
 COPY --from=build --chown=nestjs:nodejs /app/src/mail/templates ./src/mail/templates
 
 # Copy and set up start script
