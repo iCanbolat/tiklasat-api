@@ -17,6 +17,10 @@ services:
         value: production
       - key: PORT
         value: 8080
+      
+      # Database Seeding (set to true for first deployment or demo)
+      - key: SEED_DATABASE
+        value: true
 
       # JWT Configuration
       - key: JWT_SECRET

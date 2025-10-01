@@ -71,6 +71,18 @@ else
     exit 1
 fi
 
+# Seed database with demo data (optional, can be disabled)
+if [ "\$SEED_DATABASE" = "true" ]; then
+    echo "🌱 Seeding database with demo data..."
+    if npm run db:seed; then
+        echo "✅ Database seeding completed"
+    else
+        echo "⚠️  Database seeding failed, continuing anyway..."
+    fi
+else
+    echo "⏭️  Skipping database seeding (SEED_DATABASE not set to true)"
+fi
+
 # Start the application
 echo "🎯 Starting NestJS application..."
 exec npm run start:prod
