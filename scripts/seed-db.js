@@ -27,7 +27,7 @@ async function seedDatabase() {
       VALUES (
         'Admin User',
         'admin@tiklasat.com',
-        '$2b$10$YourHashedPasswordHere',
+        '$2a$10$iFAXP3x7MBxXKPRRIdQRcOrt.w5LDwAA24G8Taoqite3CQhWL6P6u',
         '+905551234567',
         'ADMIN'
       )
@@ -54,7 +54,7 @@ async function seedDatabase() {
         [
           faker.person.fullName(),
           email,
-          '$2b$10$YourHashedPasswordHere',
+          '$2a$10$iFAXP3x7MBxXKPRRIdQRcOrt.w5LDwAA24G8Taoqite3CQhWL6P6u',
           faker.phone.number('+905#########'),
         ],
       );
