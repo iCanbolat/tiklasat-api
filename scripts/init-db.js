@@ -5,7 +5,7 @@ async function initDatabase() {
   console.log('🔧 Initializing database...');
 
   const connectionString = process.env.DATABASE_URL;
-  
+
   if (!connectionString) {
     console.error('❌ DATABASE_URL is not set');
     process.exit(1);
@@ -13,21 +13,32 @@ async function initDatabase() {
 
   const pool = new Pool({
     connectionString,
-    ssl: process.env.NODE_ENV === 'production' 
-      ? { rejectUnauthorized: false } 
-      : false,
+    ssl:
+      process.env.NODE_ENV === 'production'
+        ? { rejectUnauthorized: false }
+        : false,
   });
 
   try {
     console.log('📊 Creating enums if not exist...');
-    
+
     // Create all necessary enums
     await pool.query(`
       DO $$ 
       BEGIN
+        -- User role status enum
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role_status') THEN
+          CREATE TYPE user_role_status AS ENUM ('ADMIN', 'USER');
+        END IF;
+
         -- Currency enum
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'currency_enum') THEN
           CREATE TYPE currency_enum AS ENUM ('TRY', 'USD', 'EUR');
+        END IF;
+
+        -- Product status enum
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'product_status') THEN
+          CREATE TYPE product_status AS ENUM ('ACTIVE', 'ARCHIVED', 'LOW_STOCK', 'OUT_OF_STOCK');
         END IF;
 
         -- Order status enum
@@ -37,8 +48,7 @@ async function initDatabase() {
             'PROCESSING', 
             'SHIPPED',
             'DELIVERED',
-            'CANCELLED',
-            'REFUNDED'
+            'CANCELLED'
           );
         END IF;
 
@@ -48,41 +58,35 @@ async function initDatabase() {
             'PENDING',
             'COMPLETED',
             'FAILED',
-            'REFUNDED',
-            'CANCELLED'
+            'REFUNDED'
           );
         END IF;
 
-        -- Payment method enum
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method') THEN
-          CREATE TYPE payment_method AS ENUM (
-            'CREDIT_CARD',
-            'DEBIT_CARD',
-            'BANK_TRANSFER',
-            'CASH_ON_DELIVERY',
-            'IYZICO'
-          );
-        END IF;
-
-        -- User role enum
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-          CREATE TYPE user_role AS ENUM ('CUSTOMER', 'ADMIN', 'MODERATOR');
+        -- Card type enum
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'card_type') THEN
+          CREATE TYPE card_type AS ENUM ('CREDIT_CARD', 'DEBIT_CARD');
         END IF;
 
         -- Notification type enum
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
           CREATE TYPE notification_type AS ENUM (
-            'ORDER_UPDATE',
-            'PAYMENT_CONFIRMATION',
-            'SHIPPING_UPDATE',
-            'PROMOTION',
+            'ORDER',
+            'INVENTORY',
+            'CUSTOMER',
+            'PAYMENT',
             'SYSTEM'
           );
         END IF;
 
-        -- Loyalty tier enum
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'loyalty_tier') THEN
-          CREATE TYPE loyalty_tier AS ENUM ('BRONZE', 'SILVER', 'GOLD', 'PLATINUM');
+        -- Loyalty transaction type enum
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'loyalty_transaction_type') THEN
+          CREATE TYPE loyalty_transaction_type AS ENUM (
+            'EARNED',
+            'REDEEMED',
+            'EXPIRED',
+            'REFUNDED',
+            'ADJUSTED'
+          );
         END IF;
 
       END $$;
@@ -95,7 +99,6 @@ async function initDatabase() {
     execSync('npm run db:push', { stdio: 'inherit' });
 
     console.log('✅ Database initialized successfully');
-    
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
     process.exit(1);
