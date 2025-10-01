@@ -93,6 +93,22 @@ async function initDatabase() {
     `);
 
     console.log('✅ Enums created successfully');
+
+    console.log('📊 Creating sequences...');
+
+    // Create order_number_seq sequence
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_class WHERE relname = 'order_number_seq' AND relkind = 'S'
+        ) THEN
+          CREATE SEQUENCE order_number_seq START WITH 1000 INCREMENT BY 1;
+        END IF;
+      END $$;
+    `);
+
+    console.log('✅ Sequences created successfully');
     console.log('📊 Pushing schema to database...');
 
     // Now run drizzle push
