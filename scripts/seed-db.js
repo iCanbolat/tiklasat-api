@@ -20,6 +20,28 @@ async function seedDatabase() {
   });
 
   try {
+    // 0. Clean existing demo data if re-seeding
+    if (process.env.CLEAN_BEFORE_SEED === 'true') {
+      console.log('🧹 Cleaning existing demo data...');
+      
+      // Delete in correct order (foreign key constraints)
+      await pool.query(`DELETE FROM notifications WHERE TRUE;`);
+      await pool.query(`DELETE FROM reviews WHERE TRUE;`);
+      await pool.query(`DELETE FROM order_items WHERE TRUE;`);
+      await pool.query(`DELETE FROM orders WHERE TRUE;`);
+      await pool.query(`DELETE FROM payments WHERE TRUE;`);
+      await pool.query(`DELETE FROM product_variants WHERE TRUE;`);
+      await pool.query(`DELETE FROM product_images WHERE TRUE;`);
+      await pool.query(`DELETE FROM product_category_pivot WHERE TRUE;`);
+      await pool.query(`DELETE FROM products WHERE TRUE;`);
+      await pool.query(`DELETE FROM categories WHERE TRUE;`);
+      await pool.query(`DELETE FROM customer_details WHERE TRUE;`);
+      await pool.query(`DELETE FROM refresh_tokens WHERE TRUE;`);
+      await pool.query(`DELETE FROM users WHERE TRUE;`);
+      
+      console.log('✅ Existing data cleaned');
+    }
+
     // 1. Create Admin User
     console.log('👤 Creating admin user...');
     const adminResult = await pool.query(`
@@ -283,7 +305,7 @@ async function seedDatabase() {
         `
         INSERT INTO product_variants (product_id, variant_type, value)
         VALUES ($1, $2, $3)
-        ON CONFLICT DO NOTHING;
+        
       `,
         [iphoneId, variant.type, variant.value],
       );
@@ -304,7 +326,7 @@ async function seedDatabase() {
         `
         INSERT INTO product_variants (product_id, variant_type, value)
         VALUES ($1, $2, $3)
-        ON CONFLICT DO NOTHING;
+        
       `,
         [samsungId, variant.type, variant.value],
       );
@@ -327,7 +349,7 @@ async function seedDatabase() {
         `
         INSERT INTO product_variants (product_id, variant_type, value)
         VALUES ($1, $2, $3)
-        ON CONFLICT DO NOTHING;
+        
       `,
         [macbookId, variant.type, variant.value],
       );
@@ -351,7 +373,7 @@ async function seedDatabase() {
         `
         INSERT INTO product_variants (product_id, variant_type, value)
         VALUES ($1, $2, $3)
-        ON CONFLICT DO NOTHING;
+        
       `,
         [kotId, variant.type, variant.value],
       );
@@ -376,7 +398,7 @@ async function seedDatabase() {
         `
         INSERT INTO product_variants (product_id, variant_type, value)
         VALUES ($1, $2, $3)
-        ON CONFLICT DO NOTHING;
+        
       `,
         [tshirtId, variant.type, variant.value],
       );
@@ -402,7 +424,7 @@ async function seedDatabase() {
         `
         INSERT INTO product_variants (product_id, variant_type, value)
         VALUES ($1, $2, $3)
-        ON CONFLICT DO NOTHING;
+        
       `,
         [ayakkabiId, variant.type, variant.value],
       );
@@ -539,3 +561,4 @@ async function seedDatabase() {
 }
 
 seedDatabase();
+

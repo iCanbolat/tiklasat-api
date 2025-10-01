@@ -36,6 +36,7 @@ envVars:
 ```
 
 **Veya Render Dashboard'da:**
+
 ```
 Environment → Add Environment Variable
 Key: SEED_DATABASE
@@ -52,6 +53,7 @@ envVars:
 ```
 
 **Veya:**
+
 - `SEED_DATABASE` variable'ını silme veya boş bırakma
 
 ### 3. Development/Staging
@@ -59,7 +61,7 @@ envVars:
 ```yaml
 envVars:
   - key: SEED_DATABASE
-    value: true  # Demo data ile test
+    value: true # Demo data ile test
 ```
 
 ## 🎯 Ne Zaman Kullanmalı?
@@ -93,6 +95,7 @@ envVars:
 ⚠️ **DİKKAT**: Bu mevcut data'yı etkilemez ama duplicate hatalara yol açabilir!
 
 1. Database'i temizle (opsiyonel):
+
    ```sql
    TRUNCATE users, products, orders CASCADE;
    ```
@@ -121,6 +124,7 @@ envVars:
 ### 1. Idempotency
 
 Seed script **idempotent değildir**. Tekrar çalıştırırsanız:
+
 - Aynı email'li kullanıcılar skip edilir (ON CONFLICT)
 - Aynı slug'lu ürünler **güncellenir**
 - Yeni siparişler **eklenir**
@@ -194,16 +198,19 @@ DATABASE_URL=postgres://... npm run db:seed
 ## 📝 Best Practices
 
 ### Development
+
 ```yaml
 SEED_DATABASE: true
 ```
 
 ### Staging
+
 ```yaml
 SEED_DATABASE: true
 ```
 
 ### Production
+
 ```yaml
 # SEED_DATABASE: false (veya variable'ı ekleme)
 ```
@@ -228,6 +235,7 @@ Normal - ON CONFLICT ile handle ediliyor. Skip ediliyor.
 ## 🎓 Örnek Workflow
 
 ### İlk Deployment:
+
 ```
 1. Code push ✅
 2. Render build başlar ✅
@@ -238,6 +246,7 @@ Normal - ON CONFLICT ile handle ediliyor. Skip ediliyor.
 ```
 
 ### Sonraki Deployments:
+
 ```
 1. SEED_DATABASE=false yap
 2. Code push

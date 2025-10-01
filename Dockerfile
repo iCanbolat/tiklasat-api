@@ -74,6 +74,10 @@ fi
 # Seed database with demo data (optional, can be disabled)
 if [ "\$SEED_DATABASE" = "true" ]; then
     echo "🌱 Seeding database with demo data..."
+    
+    # Set clean flag to remove existing data before seeding
+    export CLEAN_BEFORE_SEED=true
+    
     if npm run db:seed; then
         echo "✅ Database seeding completed"
     else
