@@ -264,7 +264,153 @@ async function seedDatabase() {
     }
     console.log('✅ Product images added');
 
-    // 6. Create Sample Orders
+    // 6. Add Product Variants
+    console.log('🎨 Adding product variants...');
+
+    // iPhone 15 Pro variants (first product)
+    const iphoneId = productIds[0];
+    const iphoneVariants = [
+      { type: 'Depolama', value: '128GB' },
+      { type: 'Depolama', value: '256GB' },
+      { type: 'Depolama', value: '512GB' },
+      { type: 'Renk', value: 'Titanyum Mavi' },
+      { type: 'Renk', value: 'Titanyum Siyah' },
+      { type: 'Renk', value: 'Titanyum Beyaz' },
+    ];
+
+    for (const variant of iphoneVariants) {
+      await pool.query(
+        `
+        INSERT INTO product_variants (product_id, variant_type, value)
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+      `,
+        [iphoneId, variant.type, variant.value],
+      );
+    }
+
+    // Samsung Galaxy S24 variants (second product)
+    const samsungId = productIds[1];
+    const samsungVariants = [
+      { type: 'Depolama', value: '256GB' },
+      { type: 'Depolama', value: '512GB' },
+      { type: 'Renk', value: 'Phantom Black' },
+      { type: 'Renk', value: 'Phantom Silver' },
+      { type: 'Renk', value: 'Phantom Violet' },
+    ];
+
+    for (const variant of samsungVariants) {
+      await pool.query(
+        `
+        INSERT INTO product_variants (product_id, variant_type, value)
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+      `,
+        [samsungId, variant.type, variant.value],
+      );
+    }
+
+    // MacBook Pro M3 variants (third product)
+    const macbookId = productIds[2];
+    const macbookVariants = [
+      { type: 'RAM', value: '16GB' },
+      { type: 'RAM', value: '32GB' },
+      { type: 'Depolama', value: '512GB SSD' },
+      { type: 'Depolama', value: '1TB SSD' },
+      { type: 'Depolama', value: '2TB SSD' },
+      { type: 'Renk', value: 'Space Gray' },
+      { type: 'Renk', value: 'Silver' },
+    ];
+
+    for (const variant of macbookVariants) {
+      await pool.query(
+        `
+        INSERT INTO product_variants (product_id, variant_type, value)
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+      `,
+        [macbookId, variant.type, variant.value],
+      );
+    }
+
+    // Kot Pantolon variants (fourth product)
+    const kotId = productIds[3];
+    const kotVariants = [
+      { type: 'Beden', value: 'S' },
+      { type: 'Beden', value: 'M' },
+      { type: 'Beden', value: 'L' },
+      { type: 'Beden', value: 'XL' },
+      { type: 'Beden', value: 'XXL' },
+      { type: 'Renk', value: 'Koyu Mavi' },
+      { type: 'Renk', value: 'Açık Mavi' },
+      { type: 'Renk', value: 'Siyah' },
+    ];
+
+    for (const variant of kotVariants) {
+      await pool.query(
+        `
+        INSERT INTO product_variants (product_id, variant_type, value)
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+      `,
+        [kotId, variant.type, variant.value],
+      );
+    }
+
+    // T-Shirt variants (fifth product)
+    const tshirtId = productIds[4];
+    const tshirtVariants = [
+      { type: 'Beden', value: 'XS' },
+      { type: 'Beden', value: 'S' },
+      { type: 'Beden', value: 'M' },
+      { type: 'Beden', value: 'L' },
+      { type: 'Beden', value: 'XL' },
+      { type: 'Renk', value: 'Beyaz' },
+      { type: 'Renk', value: 'Siyah' },
+      { type: 'Renk', value: 'Lacivert' },
+      { type: 'Renk', value: 'Kırmızı' },
+    ];
+
+    for (const variant of tshirtVariants) {
+      await pool.query(
+        `
+        INSERT INTO product_variants (product_id, variant_type, value)
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+      `,
+        [tshirtId, variant.type, variant.value],
+      );
+    }
+
+    // Koşu Ayakkabısı variants (last product)
+    const ayakkabiId = productIds[9];
+    const ayakkabiVariants = [
+      { type: 'Numara', value: '38' },
+      { type: 'Numara', value: '39' },
+      { type: 'Numara', value: '40' },
+      { type: 'Numara', value: '41' },
+      { type: 'Numara', value: '42' },
+      { type: 'Numara', value: '43' },
+      { type: 'Numara', value: '44' },
+      { type: 'Renk', value: 'Siyah' },
+      { type: 'Renk', value: 'Beyaz' },
+      { type: 'Renk', value: 'Mavi' },
+    ];
+
+    for (const variant of ayakkabiVariants) {
+      await pool.query(
+        `
+        INSERT INTO product_variants (product_id, variant_type, value)
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+      `,
+        [ayakkabiId, variant.type, variant.value],
+      );
+    }
+
+    console.log('✅ Product variants added');
+
+    // 7. Create Sample Orders
     console.log('🛒 Creating sample orders...');
     const users = await pool.query(
       `SELECT id FROM users WHERE role = 'USER' LIMIT 3`,
@@ -379,6 +525,8 @@ async function seedDatabase() {
     console.log(`   - Demo customers: ${customerEmails.length}`);
     console.log(`   - Categories: ${categories.length}`);
     console.log(`   - Products: ${productData.length}`);
+    console.log(`   - Product variants: 6 products with multiple variants`);
+    console.log(`   - Product images: 10+ images`);
     console.log(`   - Orders: 5 sample orders`);
     console.log(`   - Reviews: ~10 sample reviews`);
     console.log(`   - Notifications: 5 sample notifications`);

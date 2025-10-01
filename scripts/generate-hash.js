@@ -6,7 +6,7 @@ async function generateHash() {
   console.log('\n🔐 Password Hash Generated:');
   console.log('Password:', password);
   console.log('Hash:', hash);
-  console.log('\nBu hash\'i seed-db.js dosyasına kopyalayın.\n');
+  console.log("\nBu hash'i seed-db.js dosyasına kopyalayın.\n");
 }
 
 generateHash();
