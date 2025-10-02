@@ -479,20 +479,13 @@ async function seedDatabase() {
 
         // Add order items
         for (const productId of randomProducts) {
-          const product = await pool.query(
-            `
-            SELECT price FROM products WHERE id = $1
-          `,
-            [productId],
-          );
-
           const quantity = Math.floor(Math.random() * 3) + 1;
           await pool.query(
             `
-            INSERT INTO order_items (order_id, product_id, quantity, price)
-            VALUES ($1, $2, $3, $4);
+            INSERT INTO order_items (order_id, product_id, quantity)
+            VALUES ($1, $2, $3);
           `,
-            [orderId, productId, quantity, product.rows[0].price],
+            [orderId, productId, quantity],
           );
         }
       }
