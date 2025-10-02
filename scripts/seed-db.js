@@ -44,7 +44,7 @@ async function seedDatabase() {
       await safeDelete('payments');
       await safeDelete('product_variants');
       await safeDelete('product_images');
-      await safeDelete('product_category_pivot');
+      await safeDelete('products_to_categories');
       await safeDelete('products');
       await safeDelete('categories');
       await safeDelete('customer_details');
@@ -264,7 +264,7 @@ async function seedDatabase() {
       // Link product to category
       await pool.query(
         `
-        INSERT INTO product_category_pivot (product_id, category_id)
+        INSERT INTO products_to_categories (product_id, category_id)
         VALUES ($1, $2);
       `,
         [productId, product.category],
