@@ -277,10 +277,10 @@ async function seedDatabase() {
     for (const productId of productIds.slice(0, 5)) {
       await pool.query(
         `
-        INSERT INTO product_images (product_id, url, alt_text, is_primary)
+        INSERT INTO product_images (product_id, url, display_order)
         VALUES 
-          ($1, $2, 'Product image', true),
-          ($1, $3, 'Product image 2', false);
+          ($1, $2, 1),
+          ($1, $3, 2);
       `,
         [
           productId,
