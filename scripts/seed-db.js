@@ -271,8 +271,7 @@ async function seedDatabase() {
       await pool.query(
         `
         INSERT INTO product_category_pivot (product_id, category_id)
-        VALUES ($1, $2)
-        ON CONFLICT (product_id, category_id) DO NOTHING;
+        VALUES ($1, $2);
       `,
         [productId, product.category],
       );
