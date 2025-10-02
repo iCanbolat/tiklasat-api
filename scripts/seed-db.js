@@ -23,22 +23,34 @@ async function seedDatabase() {
     // 0. Clean existing demo data if re-seeding
     if (process.env.CLEAN_BEFORE_SEED === 'true') {
       console.log('🧹 Cleaning existing demo data...');
-      
+
+      // Helper function to safely delete from table if it exists
+      const safeDelete = async (tableName) => {
+        try {
+          await pool.query(`DELETE FROM ${tableName} WHERE TRUE;`);
+        } catch (error) {
+          // Ignore "relation does not exist" errors (42P01)
+          if (error.code !== '42P01') {
+            throw error;
+          }
+        }
+      };
+
       // Delete in correct order (foreign key constraints)
-      await pool.query(`DELETE FROM notifications WHERE TRUE;`);
-      await pool.query(`DELETE FROM reviews WHERE TRUE;`);
-      await pool.query(`DELETE FROM order_items WHERE TRUE;`);
-      await pool.query(`DELETE FROM orders WHERE TRUE;`);
-      await pool.query(`DELETE FROM payments WHERE TRUE;`);
-      await pool.query(`DELETE FROM product_variants WHERE TRUE;`);
-      await pool.query(`DELETE FROM product_images WHERE TRUE;`);
-      await pool.query(`DELETE FROM product_category_pivot WHERE TRUE;`);
-      await pool.query(`DELETE FROM products WHERE TRUE;`);
-      await pool.query(`DELETE FROM categories WHERE TRUE;`);
-      await pool.query(`DELETE FROM customer_details WHERE TRUE;`);
-      await pool.query(`DELETE FROM refresh_tokens WHERE TRUE;`);
-      await pool.query(`DELETE FROM users WHERE TRUE;`);
-      
+      await safeDelete('notifications');
+      await safeDelete('reviews');
+      await safeDelete('order_items');
+      await safeDelete('orders');
+      await safeDelete('payments');
+      await safeDelete('product_variants');
+      await safeDelete('product_images');
+      await safeDelete('product_category_pivot');
+      await safeDelete('products');
+      await safeDelete('categories');
+      await safeDelete('customer_details');
+      await safeDelete('refresh_tokens');
+      await safeDelete('users');
+
       console.log('✅ Existing data cleaned');
     }
 
@@ -561,4 +573,3 @@ async function seedDatabase() {
 }
 
 seedDatabase();
-
