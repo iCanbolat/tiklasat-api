@@ -65,7 +65,6 @@ async function seedDatabase() {
         '+905551234567',
         'ADMIN'
       )
-      ON CONFLICT (email) DO NOTHING
       RETURNING id;
     `);
     console.log('✅ Admin user created');
@@ -82,8 +81,7 @@ async function seedDatabase() {
       await pool.query(
         `
         INSERT INTO users (name, email, password, phone, role)
-        VALUES ($1, $2, $3, $4, 'USER')
-        ON CONFLICT (email) DO NOTHING;
+        VALUES ($1, $2, $3, $4, 'USER');
       `,
         [
           faker.person.fullName(),
@@ -119,7 +117,6 @@ async function seedDatabase() {
         `
         INSERT INTO categories (name, slug, description)
         VALUES ($1, $2, $3)
-        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
         RETURNING id;
       `,
         [cat.name, cat.slug, cat.description],
@@ -247,9 +244,6 @@ async function seedDatabase() {
           stock_quantity, manage_stock, allow_backorders, status
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, false, 'ACTIVE')
-        ON CONFLICT (slug) DO UPDATE SET 
-          name = EXCLUDED.name,
-          price = EXCLUDED.price
         RETURNING id;
       `,
         [
@@ -461,8 +455,7 @@ async function seedDatabase() {
         await pool.query(
           `
           INSERT INTO customer_details (user_id, loyalty_points)
-          VALUES ($1, 0)
-          ON CONFLICT (user_id) DO NOTHING;
+          VALUES ($1, 0);
         `,
           [userId],
         );
@@ -519,8 +512,7 @@ async function seedDatabase() {
         await pool.query(
           `
           INSERT INTO reviews (user_id, product_id, rating, comment)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (user_id, product_id) DO NOTHING;
+          VALUES ($1, $2, $3, $4);
         `,
           [userId, productId, rating, faker.lorem.paragraph()],
         );
