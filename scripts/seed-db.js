@@ -444,6 +444,19 @@ async function seedDatabase() {
     );
 
     if (users.rows.length > 0) {
+      // First, create customer_details for all users (once)
+      for (const user of users.rows) {
+        await pool.query(
+          `
+          INSERT INTO customer_details (user_id, loyalty_points)
+          VALUES ($1, 0)
+          ON CONFLICT (user_id) DO NOTHING;
+        `,
+          [user.id],
+        );
+      }
+
+      // Then create orders
       for (let i = 0; i < 5; i++) {
         const userId =
           users.rows[Math.floor(Math.random() * users.rows.length)].id;
@@ -451,16 +464,7 @@ async function seedDatabase() {
           .sort(() => 0.5 - Math.random())
           .slice(0, Math.floor(Math.random() * 3) + 1);
 
-        // Create customer details if not exists
-        await pool.query(
-          `
-          INSERT INTO customer_details (user_id, loyalty_points)
-          VALUES ($1, 0);
-        `,
-          [userId],
-        );
-
-        // Create order
+        // Create order - customer_id column references customer_details.user_id
         const orderResult = await pool.query(
           `
           INSERT INTO orders (customer_id, status)
